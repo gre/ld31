@@ -1,0 +1,31 @@
+{
+  "name": "ld31",
+  "version": "0.0.0",
+  "description": "LudumDare 31 entry by @greweb",
+  "main": "index.js",
+  "scripts": {
+    "dev": "beefy index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:gre/ld31.git"
+  },
+  "keywords": [
+    "ludumdare",
+    "ld31"
+  ],
+  "author": "Gaëtan Renaudeau",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/gre/ld31/issues"
+  },
+  "homepage": "https://github.com/gre/ld31",
+  "devDependencies": {
+    "beefy": "^2.1.1",
+    "browserify": "^7.0.0"
+  },
+  "dependencies": {
+    "pixi.js": "^2.1.1",
+    "raf": "^2.0.4"
+  }
+}
