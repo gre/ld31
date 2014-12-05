@@ -70,8 +70,9 @@ app.put("/scores", function (req, res) {
       var collection = db.collection(COLL);
       item = {
         player: item.player,
-        x: item.x,
-        y: item.y
+        x: Math.round(item.x),
+        y: Math.round(item.y),
+        date: Date.now()
       };
       return Q.ninvoke(collection, "insert", item).thenResolve(item);
     }
