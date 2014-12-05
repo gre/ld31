@@ -25,7 +25,9 @@ connectMongo(MONGO)
 
 
 app.get("/", function (req, res) {
-  res.send("Nothing here.");
+  res
+    .header("Access-Control-Allow-Origin", "*")
+    .send("Nothing here.");
 });
 
 app.get("/scores", function (req, res) {
@@ -35,7 +37,9 @@ app.get("/scores", function (req, res) {
     return Q.ninvoke(collection.find(), "toArray");
   })
   .then(function (results) {
-    res.send(JSON.stringify(results));
+    res
+      .header("Access-Control-Allow-Origin", "*")
+      .send(JSON.stringify(results));
   })
   .fail(function (e) {
     console.log(e)
