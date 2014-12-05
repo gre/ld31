@@ -9,6 +9,7 @@ var app = express();
 app.use(require("body-parser").json());
 
 var MONGO = process.env.MONGOHQ_URL || 'mongodb://127.0.0.1:27017/ld31';
+var PORT = process.env.PORT || 9832;
 var COLL = "scores";
 
 var connectMongo = Q.nbind(MongoClient.connect, MongoClient);
@@ -79,4 +80,4 @@ app.put("/scores", function (req, res) {
   .done();
 });
 
-app.listen(9832);
+app.listen(PORT);
