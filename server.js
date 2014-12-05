@@ -8,7 +8,7 @@ var Q = require("q");
 var app = express();
 app.use(require("body-parser").json());
 
-var MONGO = 'mongodb://127.0.0.1:27017/ld31';
+var MONGO = process.env.MONGOHQ_URL || 'mongodb://127.0.0.1:27017/ld31';
 var COLL = "scores";
 
 var connectMongo = Q.nbind(MongoClient.connect, MongoClient);
