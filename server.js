@@ -65,7 +65,7 @@ app.put("/scores", function (req, res) {
       typeof item.x === "number" &&
       typeof item.y === "number" &&
       0 <= item.x && item.x <= 320 &&
-      -1000 < item.y
+      -1000 > item.y
     ) {
       var collection = db.collection(COLL);
       item = {
