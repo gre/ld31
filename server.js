@@ -52,6 +52,7 @@ app.options("/scores", function (req, res) {
   res
     .header("Access-Control-Allow-Origin", "*")
     .header("Access-Control-Allow-Methods", "GET, PUT, OPTIONS")
+    .header("Access-Control-Allow-Headers", "Content-Type")
     .send();
 });
 
