@@ -26,7 +26,6 @@ connectMongo(MONGO)
 
 app.get("/", function (req, res) {
   res
-    .header("Access-Control-Allow-Origin", "*")
     .send("Nothing here.");
 });
 
@@ -47,6 +46,13 @@ app.get("/scores", function (req, res) {
     res.status(400).send(e.toString());
   })
   .done();
+});
+
+app.options("/scores", function (req, res) {
+  res
+    .header("Access-Control-Allow-Origin", "*")
+    .header("Access-Control-Allow-Methods", "GET, PUT, OPTIONS")
+    .send();
 });
 
 app.put("/scores", function (req, res) {
