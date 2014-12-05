@@ -81,12 +81,17 @@ app.put("/scores", function (req, res) {
   })
   .then(function (item) {
     console.log(item);
-    res.send();
+    res
+      .header("Access-Control-Allow-Origin", "*")
+      .send();
   })
   .fail(function (e) {
     console.log(e)
     console.log(e.stack);
-    res.status(400).send(e.toString());
+    res
+      .header("Access-Control-Allow-Origin", "*")
+      .status(400)
+      .send(e.toString());
   })
   .done();
 });
