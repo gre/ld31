@@ -38,6 +38,7 @@ app.get("/scores", function (req, res) {
   .then(function (results) {
     res
       .header("Access-Control-Allow-Origin", "*")
+      .header("Content-Type", "application/json")
       .send(JSON.stringify(results));
   })
   .fail(function (e) {
