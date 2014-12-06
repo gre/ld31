@@ -36,10 +36,14 @@ app.get("/scores", function (req, res) {
     return Q.ninvoke(collection.find(), "toArray");
   })
   .then(function (results) {
+    var json = results.map(function (item) {
+      delete item._id;
+      return item;
+    });
     res
       .header("Access-Control-Allow-Origin", "*")
       .header("Content-Type", "application/json")
-      .send(JSON.stringify(results));
+      .send(JSON.stringify(json));
   })
   .fail(function (e) {
     console.log(e)
