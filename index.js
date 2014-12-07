@@ -19,7 +19,12 @@ function burnGen (f) {
 var SOUNDS = {
   burn: [burnGen(0),burnGen(0.2),burnGen(0.4),burnGen(0.6),burnGen(0.8),burnGen(1)],
   snowballHit: jsfxr([3,0.03,0.1,0.14,0.28,0.92,,-0.02,,,,0.0155,0.8768,,,,,,0.35,,,,,0.5]),
-  carHit: jsfxr([0,,0.11,,0.1997,0.29,,-0.3599,-0.04,,,,,0.1609,,,,,1,,,,,0.5])
+  carHit: jsfxr([0,,0.11,,0.1997,0.29,,-0.3599,-0.04,,,,,0.1609,,,,,1,,,,,0.5]),
+  car: [
+    jsfxr([3,0.3,0.7,,0.82,0.23,,-0.0999,,,,-0.02,,,,,0.62,,0.09,,,0.55,,0.5]),
+    jsfxr([3,0.4,0.7,,0.82,0.13,,0.08,,,,-0.02,,,,,0.62,,0.09,,,0.55,,0.5]),
+    jsfxr([2,0.29,0.6,,0.66,0.12,,-0.04,,,,-0.02,,,,,0.62,,0.08,,,0.33,-0.02,0.5])
+  ]
 };
 
 function play (src, obj, volume) {
@@ -88,6 +93,12 @@ function getPlayerScore (player) {
 function scoreToY (score) {
   return -score;
 };
+
+function dist (a, b) {
+  var dx = a.position.x - b.position.x;
+  var dy = a.position.y - b.position.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
 
 function refreshScore () {
   return Qajax(scoresEndPoint)
@@ -253,7 +264,7 @@ Player.prototype.update = function (t, dt) {
   var x = this.controls.x();
   var y = this.controls.y();
 
-  this.position.x += 0.4 * x * dt;
+  this.position.x += 0.2 * x * dt;
   this.position.y -= 0.2 * y * dt;
 
   this.maxProgress = Math.min(this.maxProgress, this.position.y);
@@ -285,11 +296,18 @@ Player.prototype.hitBox = function () {
     height: this.height * 0.6
   };
 };
-Player.prototype.onSnowball = function () {
-  this.life += 10;
+Player.prototype.onProjectile = function (p) {
+  var knock = 2 * p.width;
+  this.position.x += knock * p.vel[0];
+  this.position.y += knock * p.vel[1];
 };
-Player.prototype.onFireball = function () {
+Player.prototype.onSnowball = function (ball) {
+  this.life += 10;
+  this.onProjectile(ball);
+};
+Player.prototype.onFireball = function (ball) {
   this.life -= 10;
+  this.onProjectile(ball);
 };
 Player.prototype.onCarHit = function () {
   play(SOUNDS.carHit, null, 1.0);
@@ -438,10 +456,11 @@ Car.prototype.update = function () {
   velUpdate.apply(this, arguments);
 };
 Car.prototype.hitBox = function () {
+  var w = Math.abs(this.width);
   return {
-    x: Math.min(this.x, this.x+this.width) - this.pivot.x,
+    x: Math.min(this.x, this.x+this.width) - this.pivot.x + w * 0.2,
     y: Math.min(this.y, this.y+this.height) - this.pivot.y,
-    width: Math.abs(this.width),
+    width: w * 0.6,
     height: Math.abs(this.height)
   };
 };
@@ -714,18 +733,18 @@ function allocChunk (i, random) {
     addRoads(y - 100 - (nb-1) * roadDist, nb);
   }
 
-  if (i > 2) {
+  if (i > 1 && random() < 0.9) {
     nb = 3 * random() * random() + 2 * random() * (10-i%10)/10 + 1;
     for (j=0; j<nb; ++j) {
       pos = [random()<0.5 ? 0 : WIDTH, y-200*random()-280];
-      n = 1 + ~~(random() * (random() + i / 8));
+      n = 1 + ~~(random() * (3 * random() + i / 8));
       offset = random() * (random() * 0.3 + 0.1 * (i % 24) / 24);
       speed = (1-(i%50)/50) * 1000 * (1 - random()*random());
       nSpawner(Snowball, pos, n, offset, speed);
     }
   }
 
-  if (i > 4) {
+  if (i > 4 && random() < 0.9) {
     nb = 2 * random() * random() + random() * (i/8) + i / 30 + 0.5;
     for (j=0; j<nb; ++j) {
       pos = [random()<0.5 ? 0 : WIDTH, y-200*random()-280];
@@ -791,6 +810,7 @@ function loop (absoluteTime) {
     }
   }
 
+  var triggerCar = 0;
   cars.children.forEach(function (spawner) {
     spawner.children.forEach(function (car) {
       var particle = particles.collides(car);
@@ -798,8 +818,17 @@ function loop (absoluteTime) {
         particle.explodeInWorld(world);
         particle.parent.removeChild(particle);
       }
+      if (!car.neverSaw && dist(car, player) < 250) {
+        car.neverSaw = 1;
+        triggerCar ++;
+      }
     });
   });
+
+  if (triggerCar) {
+    play(SOUNDS.car);
+  }
+
 
   if (player.maxProgress < 0) {
     player.life -= dt / 500;
