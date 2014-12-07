@@ -7,6 +7,8 @@ var WIDTH = 320;
 var HEIGHT = 480;
 var scoresEndPoint = "http://ld31.greweb.fr/scores";
 
+var scoresP = refreshScore();
+
 var stage = new PIXI.Stage(0xFFFFFF);
 var renderer = PIXI.autoDetectRenderer(WIDTH, HEIGHT);
 document.body.style.padding = "0";
@@ -79,8 +81,7 @@ function updateChildren (t, dt) {
 }
 
 var mapTextures = [
-  PIXI.Texture.fromImage("img/map1.png"),
-  PIXI.Texture.fromImage("img/map2.png")
+  PIXI.Texture.fromImage("img/map1.png")
 ];
 function MapTile (index) {
   PIXI.Sprite.call(this, mapTextures[index % mapTextures.length]);
@@ -88,14 +89,61 @@ function MapTile (index) {
 MapTile.prototype = Object.create(PIXI.Sprite.prototype);
 MapTile.prototype.constructor = MapTile;
 
+
+var highscoreIcons = [
+  PIXI.Texture.fromImage("img/scoreIcon1.png"),
+  PIXI.Texture.fromImage("img/scoreIcon2.png"),
+  PIXI.Texture.fromImage("img/scoreIcon3.png")
+];
+function HighScore (score, i) {
+  PIXI.DisplayObjectContainer.call(this);
+  if (highscoreIcons[i]) {
+    var icon = new PIXI.Sprite(highscoreIcons[i]);
+    icon.position.set(0, 0);
+    this.addChild(icon);
+  }
+
+  var playerText = new PIXI.Text(score.player, { align: 'center', font: 'normal 10px monospace', fill: '#C40'});
+  playerText.position.set(30, 10);
+  this.addChild(playerText);
+
+  var scoreText = new PIXI.Text(score.score, { align: 'center', font: 'bold 12px monospace', fill: '#C40'});
+  scoreText.position.set(100, 10);
+  this.addChild(scoreText);
+};
+HighScore.prototype = Object.create(PIXI.DisplayObjectContainer.prototype);
+HighScore.prototype.constructor = HighScore;
+
+
+var homeTexture = PIXI.Texture.fromImage("img/homebg.png");
+function HomeTile () {
+  PIXI.Sprite.call(this, homeTexture);
+  var self = this;
+  scoresP.then(function (scores) {
+    scores = [].concat(scores);
+    scores.sort(function (a, b) {
+      return b.score - a.score;
+    });
+    var bestScores = scores.splice(0, 5);
+    bestScores.forEach(function (score, i) {
+      var h = new HighScore(score, i);
+      h.position.set(40, 240 + 30 * i);
+      self.addChild(h);
+    });
+  }).done();
+};
+HomeTile.prototype = Object.create(PIXI.Sprite.prototype);
+HomeTile.prototype.constructor = HomeTile;
+
 function Map () {
   PIXI.DisplayObjectContainer.call(this);
+  this.addChild(new HomeTile());
   var y = 0;
   for (var i=0; i<9; ++i) {
+    y -= 480;
     var tile = new MapTile(i);
     tile.position.y = y;
     this.addChild(tile);
-    y -= 480;
   }
 }
 Map.prototype = Object.create(PIXI.DisplayObjectContainer.prototype);
@@ -243,7 +291,7 @@ function DeadCarrot (score) {
   PIXI.DisplayObjectContainer.call(this);
   var carrot = new PIXI.Sprite(deadCarrotTexture);
   carrot.pivot.set(12, 24);
-  var text = new PIXI.Text(score.player, { align: 'center', font: 'normal 10px monospace', fill: '#999'});
+  var text = new PIXI.Text(score.player, { align: 'center', font: 'normal 10px monospace', fill: '#C40'});
   text.position.set(-text.width/2, 0);
   this.position.set(score.x, scoreToY(score.score));
   this.addChild(carrot);
@@ -430,8 +478,9 @@ world.addChild(particles);
 
 player.pivot.x = 24;
 player.pivot.y = 24;
-player.position.x = 100;
-player.maxProgress = player.position.y = HEIGHT - 200;
+player.position.x = WIDTH / 2;
+player.position.y = HEIGHT - 30;
+player.maxProgress = HEIGHT - 120;
 
 var score = new PIXI.Text("", {});
 stage.addChild(ui);
@@ -490,9 +539,9 @@ function createDeadCarrot (score) {
   }
 }
 
-refreshScore().then(function (scores) {
+scoresP.then(function (scores) {
   scores.forEach(createDeadCarrot);
-});
+}).done();
 
 var lastAbsoluteTime;
 var t = 0;
@@ -550,8 +599,9 @@ function loop (absoluteTime) {
   player.life -= dt / 500;
 
 
-
-  score.setText("" + getPlayerScore(player));
+  var s = getPlayerScore(player);
+  if (s > 0)
+    score.setText("" + s);
 
   if (!player.dead && player.life <= 0) {
     player.dead = 1;
