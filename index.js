@@ -189,8 +189,9 @@ HomeTile.prototype.constructor = HomeTile;
 function Map () {
   PIXI.DisplayObjectContainer.call(this);
   this.addChild(new HomeTile());
+  this.y = 0;
   var y = 0;
-  for (var i=0; i<9; ++i) {
+  for (var i=0; i<999; ++i) {
     y -= 480;
     var tile = new MapTile(i);
     tile.position.y = y;
