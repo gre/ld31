@@ -308,8 +308,8 @@ World.prototype.playerDied = function (player) {
   var self = this;
   setTimeout(function () {
     self.addChild(new DeadCarrot(obj, true, true));
-  }, 1000);
-  this.addChild(new ParticleExplosion(player, playerExplosionTextures, 300));
+  }, 800);
+  this.addChild(new ParticleExplosion(player, playerExplosionTextures, 250));
 };
 World.prototype.snowballExplode = function (snowball) {
   play(SOUNDS.snowballHit, snowball, 0.6);
