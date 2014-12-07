@@ -4,6 +4,42 @@ var Qajax = require("qajax");
 var _ = require("lodash");
 var smoothstep = require("smoothstep");
 var seedrandom = require("seedrandom");
+var jsfxr = require("./jsfxr");
+
+var DEBUG = false;
+
+function mix (a, b, x) {
+  return x * b + (1-x)*a;
+}
+
+function burnGen (f) {
+  return jsfxr([3,,0.2597,0.3427,0.3548,0.04+0.03*f,,0.1573,,,,,,,,,0.3027,-0.0823,1,,,,,0.5]);
+}
+
+var SOUNDS = {
+  burn: [burnGen(0),burnGen(0.2),burnGen(0.4),burnGen(0.6),burnGen(0.8),burnGen(1)],
+  snowballHit: jsfxr([3,0.03,0.1,0.14,0.28,0.92,,-0.02,,,,0.0155,0.8768,,,,,,0.35,,,,,0.5]),
+  carHit: jsfxr([0,,0.11,,0.1997,0.29,,-0.3599,-0.04,,,,,0.1609,,,,,1,,,,,0.5])
+};
+
+function play (src, obj, volume) {
+  if (typeof src === "object" && src.length) {
+    return play(src[~~(Math.random()*src.length)], obj, volume);
+  }
+  var volume = volume || 1;
+  if (obj) {
+    var dx = obj.x - player.x;
+    var dy = obj.y - player.y;
+    var dist = Math.sqrt(dx*dx+dy*dy);
+    volume *= Math.pow(smoothstep(350, 40, dist), 3);
+  }
+  if (!volume) return;
+  var audio = new Audio();
+  audio.src = src;
+  audio.volume = volume;
+  console.log(audio.volume);
+  audio.play();
+}
 
 var WIDTH = 320;
 var HEIGHT = 480;
@@ -11,8 +47,24 @@ var scoresEndPoint = "http://ld31.greweb.fr/scores";
 
 var scoresP = refreshScore();
 
+WebFontConfig = {
+  google: { families: [ 'Monda:400,700:latin' ] }
+};
+(function() {
+  var wf = document.createElement('script');
+  wf.src = ('https:' == document.location.protocol ? 'https' : 'http') +
+  '://ajax.googleapis.com/ajax/libs/webfont/1/webfont.js';
+  wf.type = 'text/javascript';
+  wf.async = 'true';
+  var s = document.getElementsByTagName('script')[0];
+  s.parentNode.insertBefore(wf, s);
+})();
+
+
 var stage = new PIXI.Stage(0xFFFFFF);
-var renderer = PIXI.autoDetectRenderer(WIDTH, HEIGHT);
+var renderer = PIXI.autoDetectRenderer(WIDTH, HEIGHT, { resolution: window.devicePixelRatio });
+renderer.view.style.width = WIDTH+"px";
+renderer.view.style.height = HEIGHT+"px";
 document.body.style.padding = "0";
 document.body.style.margin = "0";
 document.body.appendChild(renderer.view);
@@ -102,11 +154,11 @@ function HighScore (score, i) {
     this.addChild(icon);
   }
 
-  var playerText = new PIXI.Text(score.player, { align: 'center', font: 'normal 10px monospace', fill: '#C40'});
+  var playerText = new PIXI.Text(score.player, { align: 'center', font: 'normal 10px Monda', fill: '#C40'});
   playerText.position.set(30, 10);
   this.addChild(playerText);
 
-  var scoreText = new PIXI.Text(score.score, { align: 'center', font: 'bold 12px monospace', fill: '#C40'});
+  var scoreText = new PIXI.Text(score.score, { align: 'center', font: 'bold 12px Monda', fill: '#C40'});
   scoreText.position.set(100, 10);
   this.addChild(scoreText);
 };
@@ -148,10 +200,6 @@ function Map () {
 Map.prototype = Object.create(PIXI.DisplayObjectContainer.prototype);
 Map.prototype.constructor = Map;
 Map.prototype.update = function () {
-
-};
-Map.prototype.setForesee = function (y) {
-  // TODO
 };
 
 
@@ -168,10 +216,10 @@ World.prototype.playerDied = function (player) {
   this.addChild(new DeadCarrot(obj, true, true));
 };
 World.prototype.snowballExplode = function (snowball) {
-  console.log("snowball explode");
+  play(SOUNDS.snowballHit, snowball, 0.6);
 };
 World.prototype.fireballExplode = function (fireball) {
-  console.log("fireball explode");
+  play(SOUNDS.burn, fireball, 0.3);
 };
 World.prototype.focusOn = function (player) {
   y = HEIGHT-Math.max(player.position.y, player.maxProgress+120);
@@ -182,9 +230,14 @@ World.prototype.focusOn = function (player) {
 
 
 var playerTexture = PIXI.Texture.fromImage("img/player.png");
+var playerWalkTextures = [
+  PIXI.Texture.fromImage("img/player1.png"),
+  PIXI.Texture.fromImage("img/player2.png")
+];
 function Player () {
   PIXI.Sprite.call(this, playerTexture);
   this.life = 100;
+  this.pivot.set(80, 80);
 }
 Player.prototype = Object.create(PIXI.Sprite.prototype);
 Player.prototype.constructor = Player;
@@ -202,13 +255,25 @@ Player.prototype.update = function (t, dt) {
   this.position.y = Math.min(this.position.y, this.maxProgress+120);
 
   var scale = 0.5 + this.life / 100;
-  this.scale.x = scale;
-  this.scale.y = scale;
+  this.width  = 30 * scale;
+  this.height = 30 * scale;
+
+  if (x || y) {
+    this.setTexture(playerWalkTextures[~~(t / 200) % 2]);
+  }
+  else {
+    this.setTexture(playerTexture);
+  }
+
+  if (y < 0) this.rotation = Math.PI;
+  else if (y > 0) this.rotation = 0;
+  else if (x > 0) this.rotation = Math.PI/2;
+  else if (x < 0) this.rotation = -Math.PI/2;
 };
 Player.prototype.hitBox = function () {
   return {
-    x: this.x - this.pivot.x + this.width * 0.25,
-    y: this.y - this.pivot.y + this.height * 0.2,
+    x: this.x - this.pivot.x * this.scale.x + this.width * 0.25,
+    y: this.y - this.pivot.y * this.scale.y + this.height * 0.2,
     width: this.width * 0.5,
     height: this.height * 0.6
   };
@@ -220,6 +285,7 @@ Player.prototype.onFireball = function () {
   this.life -= 10;
 };
 Player.prototype.onCarHit = function () {
+  play(SOUNDS.carHit, null, 1.0);
   this.life = 0;
 };
 Player.prototype.collidesCar = function (car) {
@@ -242,6 +308,9 @@ var fireballTexture = PIXI.Texture.fromImage("img/fireball.png");
 function Fireball (vel) {
   PIXI.Sprite.call(this, fireballTexture);
   this.vel = vel;
+  var scale = 0.3 + 0.2 * Math.random() + 0.5 * Math.random() * Math.random();
+  this.scale.set(scale, scale);
+  if (DEBUG) world.addChild(new DebugSprite(this));
 }
 Fireball.prototype = Object.create(PIXI.Sprite.prototype);
 Fireball.prototype.constructor = Fireball;
@@ -251,8 +320,8 @@ Fireball.prototype.update = function () {
 };
 Fireball.prototype.hitBox = function () {
   return {
-    x: this.x - this.pivot.x + 0.2 * this.width,
-    y: this.y - this.pivot.y + 0.2 * this.height,
+    x: this.x - this.pivot.x * this.scale.x + 0.2 * this.width,
+    y: this.y - this.pivot.y * this.scale.y + 0.2 * this.height,
     width: this.width * 0.6,
     height: this.height * 0.6
   };
@@ -270,7 +339,9 @@ var snowballTexture = PIXI.Texture.fromImage("img/snowball.png");
 function Snowball (vel) {
   PIXI.Sprite.call(this, snowballTexture);
   this.vel = vel;
-  this.scale.set(0.8, 0.8);
+  var scale = 0.5 + 0.5 * Math.random();
+  this.scale.set(scale, scale);
+  if (DEBUG) world.addChild(new DebugSprite(this));
 }
 Snowball.prototype = Object.create(PIXI.Sprite.prototype);
 Snowball.prototype.constructor = Snowball;
@@ -279,8 +350,8 @@ Snowball.prototype.update = function () {
 };
 Snowball.prototype.hitBox = function () {
   return {
-    x: this.x - this.pivot.x,
-    y: this.y - this.pivot.y,
+    x: this.x - this.pivot.x * this.scale.x,
+    y: this.y - this.pivot.y * this.scale.y,
     width: this.width,
     height: this.height
   };
@@ -293,6 +364,20 @@ Snowball.prototype.hitPlayer = function () {
 };
 Snowball.prototype.collides = spriteCollides;
 
+
+var debugTexture = PIXI.Texture.fromImage("img/debug.png");
+function DebugSprite (observe) {
+  PIXI.Sprite.call(this, debugTexture);
+  this.o = observe;
+}
+DebugSprite.prototype = Object.create(PIXI.Sprite.prototype);
+DebugSprite.prototype.constructor = DebugSprite;
+DebugSprite.prototype.update = function () {
+  var hitBox = this.o.hitBox();
+  this.position.set(hitBox.x, hitBox.y);
+  this.width = hitBox.width;
+  this.height = hitBox.height;
+}
 
 
 var deadCarrotTexture = PIXI.Texture.fromImage("img/dead_carrot.png");
@@ -321,24 +406,36 @@ DeadCarrot.prototype.update = function () {
 var carTextures = [
   PIXI.Texture.fromImage("img/car1.png"),
   PIXI.Texture.fromImage("img/car2.png"),
-  PIXI.Texture.fromImage("img/car3.png")
+  PIXI.Texture.fromImage("img/car3.png"),
+  PIXI.Texture.fromImage("img/car4.png"),
+  PIXI.Texture.fromImage("img/car5.png"),
+  PIXI.Texture.fromImage("img/car6.png"),
+  PIXI.Texture.fromImage("img/car7.png"),
+  PIXI.Texture.fromImage("img/car8.png"),
+  PIXI.Texture.fromImage("img/car9.png"),
+  PIXI.Texture.fromImage("img/car10.png")
 ];
 
 function Car (vel) {
   PIXI.Sprite.call(this, carTextures[~~(Math.random()*carTextures.length)]);
   this.vel = vel;
+  this.width = 0;
+  this.height = 0;
+  if (DEBUG) world.addChild(new DebugSprite(this));
 }
 Car.prototype = Object.create(PIXI.Sprite.prototype);
 Car.prototype.constructor = Car;
 Car.prototype.update = function () {
+  this.width  = this.vel[0] < 0 ? -84 : 84;
+  this.height = 48;
   velUpdate.apply(this, arguments);
 };
 Car.prototype.hitBox = function () {
   return {
-    x: this.x - this.pivot.x,
-    y: this.y - this.pivot.y,
-    width: this.width,
-    height: this.height
+    x: Math.min(this.x, this.x+this.width) - this.pivot.x,
+    y: Math.min(this.y, this.y+this.height) - this.pivot.y,
+    width: Math.abs(this.width),
+    height: Math.abs(this.height)
   };
 };
 Car.prototype.collides = spriteCollides;
@@ -441,7 +538,7 @@ Spawner.prototype.update = function (t) {
   var particle = new this.Particle();
   particle.position.x = this.pos[0] + (Math.random() - 0.5) * this.randPos;
   particle.position.y = this.pos[1] + (Math.random() - 0.5) * this.randPos;
-  var angle = this.ang + (Math.random() - 0.5) * this.randAngle + this.rotate * this.i;
+  var angle = this.ang + (Math.random() - 0.5) * this.randAngle + (this.rotate * this.i) % (2*Math.PI);
   var vel = this.vel + (Math.random() - 0.5) * this.randVel;
   particle.vel = [
     vel * Math.cos(angle),
@@ -492,11 +589,11 @@ world.addChild(player);
 world.addChild(cars);
 world.addChild(particles);
 
-player.pivot.x = 24;
-player.pivot.y = 24;
 player.position.x = WIDTH / 2;
 player.position.y = HEIGHT - 30;
 player.maxProgress = HEIGHT - 120;
+
+if (DEBUG) world.addChild(new DebugSprite(player));
 
 var score = new PIXI.Text("", {});
 stage.addChild(ui);
@@ -512,13 +609,15 @@ function addCarPath (y, leftToRight, vel, maxFollowing, maxHole, spacing) {
     var n = (i%2 ? -1 : 1) * ~~(1 + ( (i%2 ? maxHole : maxFollowing) - 1) * Math.random());
     seq.push(n);
   }
+  var pos = [ leftToRight ? -100 : WIDTH+100, y ];
   var spawner = new Spawner({
     Particle: Car,
-    pos: [ leftToRight ? -100 : WIDTH, y ],
+    pos: pos,
     ang: leftToRight ? 0 : Math.PI,
     vel: vel,
     speed: (80 * (1+(spacing||0))) / vel,
-    seq: seq
+    seq: seq,
+    livingBound: { x: -100, y: y, height: 100, width: WIDTH+200 }
   });
   cars.addChild(spawner);
   return spawner;
@@ -531,7 +630,23 @@ function addDirectionalParticleSpawner (Particle, pos, ang, vel, speed, seq) {
     ang: ang,
     vel: vel,
     speed: speed,
-    seq: seq
+    seq: seq,
+    life: 6000
+  });
+  particles.addChild(spawner);
+  return spawner;
+}
+
+function addRotatingParticleSpawner (Particle, pos, rotate, vel, speed, seq) {
+  var spawner = new Spawner({
+    Particle: Particle,
+    pos: pos,
+    vel: vel,
+    rotate: rotate,
+    speed: speed,
+    seq: seq,
+    life: 6000,
+    angle: Math.random() * 2 * Math.PI
   });
   particles.addChild(spawner);
   return spawner;
@@ -567,31 +682,59 @@ function addRoads (y, numberRoads) {
   }
 }
 
+function nSpawner (Particle, pos, n, offset, speed) {
+  addRotatingParticleSpawner(Particle, pos, offset + 2*Math.PI / n, 0.25, speed / n);
+}
 
 function allocChunk (i, random) {
   var y = -480 * i;
+  var pos, nb, n, off, j, speed, vel;
+  var maxFollowing, maxHole, spacing;
 
   if (i > 0) {
-    var numberRoads = 3;
-    for (var j=0; j<numberRoads; ++j) {
-      addCarPath(y - 100 - j*roadDist, j % 2 === 0, 0.1, 4, 5, 0.3);
+    nb = ~~Math.min(6, 2*random()*random() + random() * (i / 8) + 1);
+    for (j=0; j<nb; ++j) {
+      vel = 0.05 + 0.05 * random() + 0.004 * (i + 10 * random() + 50 * random() * random());
+      maxFollowing = 3 + (i / 20) * random() + 6 * random() * random();
+      maxHole = 8 - 5 * mix(smoothstep(0, 20, i * random()), random(), 0.5) + random() / (i / 5);
+      spacing = 0.2 + 0.3 * random();
+      addCarPath(y - 100 - j*roadDist, j % 2 === 0, vel, maxFollowing, maxHole, spacing);
     }
-    addRoads(y - 100 - (numberRoads-1) * roadDist, numberRoads);
+    addRoads(y - 100 - (nb-1) * roadDist, nb);
   }
 
   if (i > 2) {
-    addDirectionalParticleSpawner(Snowball, [300, y-450], -Math.PI/2 - 0.5, 0.3, 200, [10, -10]);
+    nb = 3 * random() * random() + 2 * random() * (10-i%10)/10 + 1;
+    for (j=0; j<nb; ++j) {
+      pos = [random()<0.5 ? 0 : WIDTH, y-200*random()-280];
+      n = 1 + ~~(random() * (random() + i / 8));
+      offset = random() * (random() * 0.3 + 0.1 * (i % 24) / 24);
+      speed = (1-(i%50)/50) * 1000 * (1 - random()*random());
+      nSpawner(Snowball, pos, n, offset, speed);
+    }
   }
+
   if (i > 4) {
-    addDirectionalParticleSpawner(Fireball, [0,   y-450], -Math.PI/2 + 0.5, 0.3, 200, [10, -10]);
+    nb = 2 * random() * random() + random() * (i/8) + i / 30 + 0.5;
+    for (j=0; j<nb; ++j) {
+      pos = [random()<0.5 ? 0 : WIDTH, y-200*random()-280];
+      n = 1 + ~~(random() * (random() + i / 10));
+      offset = random() * (random() * 0.3 + 0.1 * ((i+10) % 24) / 24);
+      speed = (1-(i%50)/50) * 1000 * (1 - random()*random());
+      nSpawner(Fireball, pos, n, offset, speed);
+    }
   }
+
 }
+
 
 /*
 //,{ speed: 20, Particle: Snowball, pos: [ WIDTH/2, HEIGHT/2 ], vel: .3, rotate: 0.33 * Math.PI }
 */
 
-var chunkAllocRandom = seedrandom("grewebisawesome");
+var seed = "grewebisawesome" + ~~(Date.now() / (24 * 3600 * 1000));
+console.log("seed = "+seed);
+var chunkAllocRandom = seedrandom(seed);
 
 function createDeadCarrot (score) {
   if (score.opacity > 0) {
@@ -647,8 +790,9 @@ function loop (absoluteTime) {
     });
   });
 
-  player.life -= dt / 500;
-
+  if (player.maxProgress < 0) {
+    player.life -= dt / 500;
+  }
 
   var s = getPlayerScore(player);
   if (s > 0)
@@ -671,6 +815,14 @@ function loop (absoluteTime) {
   if (aheadChunk > currentAlloc) {
     allocChunk(++currentAlloc, chunkAllocRandom);
   }
+
+  [cars,particles].forEach(function (spawnerColl) {
+    spawnerColl.children.forEach(function (spawner) {
+      if (player.maxProgress < spawner.pos[1]-HEIGHT-100) {
+        spawner.parent.removeChild(spawner);
+      }
+    });
+  });
 
   renderer.render(stage);
 
