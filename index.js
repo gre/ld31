@@ -893,6 +893,8 @@ var t = 0;
 
 var currentAlloc = -1;
 
+var angry = 0;
+
 function loop (absoluteTime) {
   requestAnimFrame(loop);
 
@@ -918,8 +920,13 @@ function loop (absoluteTime) {
       particle.explodeInWorld(world);
       particle.hitPlayer(player);
       particle.parent.removeChild(particle);
+      angry ++;
     }
   }
+
+  angry = Math.max(0, angry - dt * 0.001);
+
+  console.log(angry);
 
   var triggerCar = 0;
   var danger = 0;
@@ -943,8 +950,12 @@ function loop (absoluteTime) {
     play(SOUNDS.car);
   }
 
-  audio1.setVolume( keyboard.x() || keyboard.y() ? 0.2 + Math.min(0.7, danger / 3) : 0 );
-  // audio2.setVolume( Math.min(danger * 0.6, 1) );
+  if (player.dead) {
+    audio1.setVolume(0);
+  }
+  else {
+    audio1.setVolume( keyboard.x() || keyboard.y() ? 0.1 + Math.min(0.9, angry + danger / 4) : 0 );
+  }
 
   if (player.maxProgress < 0) {
     player.life -= dt / 500;
