@@ -952,7 +952,7 @@ function loop (absoluteTime) {
     audio1.setVolume(0);
   }
   else {
-    audio1.setVolume( keyboard.x() || keyboard.y() ? 0.15 + Math.min(0.85, angry + danger / 4) : 0 );
+    audio1.setVolume( keyboard.x() || keyboard.y() ? 0.2 + Math.min(0.8, angry + danger / 4) : 0 );
   }
 
   if (player.maxProgress < 0) {
