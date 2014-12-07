@@ -238,6 +238,7 @@ World.prototype.focusOn = function (player) {
 var playerTexture = PIXI.Texture.fromImage("img/player.png");
 var playerWalkTextures = [
   PIXI.Texture.fromImage("img/player1.png"),
+  playerTexture,
   PIXI.Texture.fromImage("img/player2.png")
 ];
 function Player () {
@@ -265,7 +266,7 @@ Player.prototype.update = function (t, dt) {
   this.height = 40 * scale;
 
   if (x || y) {
-    this.setTexture(playerWalkTextures[~~(t / 200) % 2]);
+    this.setTexture(playerWalkTextures[~~(t / 150) % playerWalkTextures.length]);
   }
   else {
     this.setTexture(playerTexture);
@@ -601,12 +602,16 @@ player.maxProgress = HEIGHT - 120;
 
 if (DEBUG) world.addChild(new DebugSprite(player));
 
-var score = new PIXI.Text("", { font: 'normal 20px Monda' });
-stage.addChild(ui);
+var score = new PIXI.Text("", { font: 'bold 20px Monda', fill: '#88B' });
+var life = new PIXI.Text("");
 ui.addChild(score);
+ui.addChild(life);
+stage.addChild(ui);
 
 score.position.x = 10;
 score.position.y = 10;
+life.position.x = WIDTH - 60;
+life.position.y = 10;
 
 function addCarPath (y, leftToRight, vel, maxFollowing, maxHole, spacing) {
   var length = 10;
@@ -801,8 +806,19 @@ function loop (absoluteTime) {
   }
 
   var s = getPlayerScore(player);
-  if (s > 0)
+  if (s > 0) {
     score.setText("" + s);
+    if (player.life > 0) {
+      life.setText("" + ~~(player.life) + "%");
+      life.setStyle({
+        font: 'normal 20px Monda',
+        fill: player.life < 20 ? '#F00' : (player.life < 50 ? '#F90' : (player.life < 100 ? '#999' : '#6C6'))
+      });
+    }
+    else {
+      life.setText("");
+    }
+  }
 
   if (!player.dead && player.life <= 0) {
     player.dead = 1;
