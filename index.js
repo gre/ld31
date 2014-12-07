@@ -67,7 +67,11 @@ renderer.view.style.width = WIDTH+"px";
 renderer.view.style.height = HEIGHT+"px";
 document.body.style.padding = "0";
 document.body.style.margin = "0";
-document.body.appendChild(renderer.view);
+var wrapper = document.createElement("div");
+wrapper.style.margin = "0 auto";
+wrapper.style.width = WIDTH+"px";
+document.body.appendChild(wrapper);
+wrapper.appendChild(renderer.view);
 requestAnimFrame(loop);
 setTimeout(getPlayerName, 100);
 
@@ -230,6 +234,7 @@ World.prototype.focusOn = function (player) {
 };
 
 
+
 var playerTexture = PIXI.Texture.fromImage("img/player.png");
 var playerWalkTextures = [
   PIXI.Texture.fromImage("img/player1.png"),
@@ -255,9 +260,9 @@ Player.prototype.update = function (t, dt) {
   this.position.x = Math.max(0, Math.min(this.position.x, WIDTH));
   this.position.y = Math.min(this.position.y, this.maxProgress+120);
 
-  var scale = 0.5 + this.life / 100;
-  this.width  = 30 * scale;
-  this.height = 30 * scale;
+  var scale = 0.6 + this.life / 150;
+  this.width  = 40 * scale;
+  this.height = 40 * scale;
 
   if (x || y) {
     this.setTexture(playerWalkTextures[~~(t / 200) % 2]);
@@ -386,7 +391,7 @@ function DeadCarrot (score, animated, me) {
   PIXI.DisplayObjectContainer.call(this);
   var carrot = new PIXI.Sprite(deadCarrotTexture);
   carrot.pivot.set(12, 24);
-  var text = new PIXI.Text(score.player, { align: 'center', font: 'normal 10px monospace', fill: me ?  '#F40' : '#C40'});
+  var text = new PIXI.Text(score.player, { align: 'center', font: 'normal 10px Monda', fill: me ?  '#F40' : '#C40'});
   text.position.set(-text.width/2, 0);
   this.position.set(score.x, scoreToY(score.score));
   this.addChild(carrot);
@@ -596,7 +601,7 @@ player.maxProgress = HEIGHT - 120;
 
 if (DEBUG) world.addChild(new DebugSprite(player));
 
-var score = new PIXI.Text("", {});
+var score = new PIXI.Text("", { font: 'normal 20px Monda' });
 stage.addChild(ui);
 ui.addChild(score);
 
