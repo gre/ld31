@@ -807,12 +807,12 @@ function addRoads (y, numberRoads) {
     map.addChild(road);
     if (i==0) {
       road = new PIXI.Sprite(roadOutTexture);
-      road.position.set(0, y + i * roadDist + 10);
+      road.position.set(0, y + i * roadDist - 10);
       map.addChild(road);
     }
     if (i==numberRoads-1) {
       road = new PIXI.Sprite(roadInTexture);
-      road.position.set(0, y + i * roadDist - 10);
+      road.position.set(0, y + i * roadDist + 10);
       map.addChild(road);
     }
     if (i>0) {
