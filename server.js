@@ -70,7 +70,7 @@ app.put("/scores", function (req, res) {
       typeof item.x === "number" && !isNaN(item.x) &&
       typeof item.y === "number" && !isNaN(item.y) &&
       0 <= item.x && item.x <= 320 &&
-      -1000 > item.y
+      item.y > 0
     ) {
       var collection = db.collection(COLL);
       item = {
