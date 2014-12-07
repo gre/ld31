@@ -66,7 +66,7 @@ app.put("/scores", function (req, res) {
   .then(function (db) {
     var item = req.body;
     if (
-      typeof item.player === "string" && /^[a-z0-9]{3,20}$/.exec(item.player) &&
+      typeof item.player === "string" && /^[a-zA-Z0-9]{3,20}$/.exec(item.player) &&
       typeof item.x === "number" && !isNaN(item.x) &&
       typeof item.y === "number" && !isNaN(item.y) &&
       0 <= item.x && item.x <= 320 &&
