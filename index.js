@@ -2,6 +2,8 @@ var PIXI = require("pixi.js");
 var requestAnimFrame = require("raf");
 var Qajax = require("qajax");
 var _ = require("lodash");
+var smoothstep = require("smoothstep");
+var seedrandom = require("seedrandom");
 
 var WIDTH = 320;
 var HEIGHT = 480;
@@ -36,14 +38,10 @@ function refreshScore () {
     .then(Qajax.filterSuccess)
     .then(Qajax.toJSON);
 }
-function submitScore (x, y) {
+function submitScore (player) {
   return Qajax(scoresEndPoint, {
     method: "PUT",
-    data: {
-      player: getPlayerName(),
-      x: ~~x,
-      score: getPlayerScore(player)
-    }
+    data: player.getScore()
   })
   .then(Qajax.filterSuccess);
 }
@@ -76,7 +74,8 @@ function findChildrenCollide (sprite) {
 
 function updateChildren (t, dt) {
   this.children.forEach(function (child) {
-    child.update(t, dt);
+    if (child.update)
+      child.update(t, dt);
   });
 }
 
@@ -162,11 +161,11 @@ function World () {
 }
 World.prototype = Object.create(PIXI.DisplayObjectContainer.prototype);
 World.prototype.constructor = World;
-World.prototype.update = function () {
-
-};
+World.prototype.update = updateChildren;
 World.prototype.playerDied = function (player) {
-  console.log("player die");
+  var obj = player.getScore();
+  obj.opacity = 1;
+  this.addChild(new DeadCarrot(obj, true, true));
 };
 World.prototype.snowballExplode = function (snowball) {
   console.log("snowball explode");
@@ -190,6 +189,7 @@ function Player () {
 Player.prototype = Object.create(PIXI.Sprite.prototype);
 Player.prototype.constructor = Player;
 Player.prototype.update = function (t, dt) {
+  if (this.dead) return;
   var x = this.controls.x();
   var y = this.controls.y();
 
@@ -229,6 +229,14 @@ Player.prototype.collidesParticle = function (p) {
   return collideRectangle(this, p);
 };
 Player.prototype.collides = spriteCollides;
+Player.prototype.getScore = function () {
+ return {
+   player: getPlayerName(),
+   x: ~~player.position.x,
+   score: getPlayerScore(player)
+ };
+};
+
 
 var fireballTexture = PIXI.Texture.fromImage("img/fireball.png");
 function Fireball (vel) {
@@ -239,6 +247,7 @@ Fireball.prototype = Object.create(PIXI.Sprite.prototype);
 Fireball.prototype.constructor = Fireball;
 Fireball.prototype.update = function () {
   velUpdate.apply(this, arguments);
+  if (this.position.y > 0) this.parent.removeChild(this);
 };
 Fireball.prototype.hitBox = function () {
   return {
@@ -251,7 +260,7 @@ Fireball.prototype.hitBox = function () {
 Fireball.prototype.explodeInWorld = function (world) {
   world.fireballExplode(this);
 };
-Fireball.prototype.touchPlayer = function () {
+Fireball.prototype.hitPlayer = function () {
   player.onFireball(this);
 }
 Fireball.prototype.collides = spriteCollides;
@@ -279,7 +288,7 @@ Snowball.prototype.hitBox = function () {
 Snowball.prototype.explodeInWorld = function (world) {
   world.snowballExplode(this);
 };
-Snowball.prototype.touchPlayer = function () {
+Snowball.prototype.hitPlayer = function () {
   player.onSnowball(this);
 };
 Snowball.prototype.collides = spriteCollides;
@@ -287,21 +296,27 @@ Snowball.prototype.collides = spriteCollides;
 
 
 var deadCarrotTexture = PIXI.Texture.fromImage("img/dead_carrot.png");
-function DeadCarrot (score) {
+function DeadCarrot (score, animated, me) {
   PIXI.DisplayObjectContainer.call(this);
   var carrot = new PIXI.Sprite(deadCarrotTexture);
   carrot.pivot.set(12, 24);
-  var text = new PIXI.Text(score.player, { align: 'center', font: 'normal 10px monospace', fill: '#C40'});
+  var text = new PIXI.Text(score.player, { align: 'center', font: 'normal 10px monospace', fill: me ?  '#F40' : '#C40'});
   text.position.set(-text.width/2, 0);
   this.position.set(score.x, scoreToY(score.score));
   this.addChild(carrot);
   this.addChild(text);
   this.alpha = score.opacity;
+  this.animated = animated;
+  this.start = Date.now();
 };
 DeadCarrot.prototype = Object.create(PIXI.DisplayObjectContainer.prototype);
 DeadCarrot.prototype.constructor = DeadCarrot;
-
-
+DeadCarrot.prototype.update = function () {
+  if (this.animated) {
+    var scale = 1 + smoothstep(4000, 0, Date.now()-this.start);
+    this.scale.set(scale, scale);
+  }
+};
 
 var carTextures = [
   PIXI.Texture.fromImage("img/car1.png"),
@@ -466,6 +481,7 @@ var player = new Player();
 var cars = new SpawnerCollection();
 var particles = new SpawnerCollection();
 var deadCarrots = new PIXI.DisplayObjectContainer();
+deadCarrots.update = updateChildren;
 
 player.controls = keyboard;
 
@@ -508,10 +524,6 @@ function addCarPath (y, leftToRight, vel, maxFollowing, maxHole, spacing) {
   return spawner;
 }
 
-addCarPath(-500, false, 0.1, 4, 5, 0.3);
-addCarPath(-400, true, 0.1, 4, 5, 0.3);
-
-
 function addDirectionalParticleSpawner (Particle, pos, ang, vel, speed, seq) {
   var spawner = new Spawner({
     Particle: Particle,
@@ -525,12 +537,61 @@ function addDirectionalParticleSpawner (Particle, pos, ang, vel, speed, seq) {
   return spawner;
 }
 
-addDirectionalParticleSpawner(Fireball, [0,    -1000], -Math.PI/4,   0.3, 200, [10, -10]);
-addDirectionalParticleSpawner(Snowball, [WIDTH,-1000], -3*Math.PI/4, 0.3, 200, [10, -10]);
+var roadDist = 60;
+
+var roadTexture = PIXI.Texture.fromImage("img/road.png");
+var roadInTexture = PIXI.Texture.fromImage("img/roadin.png");
+var roadOutTexture = PIXI.Texture.fromImage("img/roadout.png");
+var roadSeparatorTexture = PIXI.Texture.fromImage("img/roadseparator.png");
+
+function addRoads (y, numberRoads) {
+  for (var i=0; i<numberRoads; ++i) {
+    var road = new PIXI.Sprite(roadTexture);
+    road.position.set(0, y + i * roadDist);
+    map.addChild(road);
+    if (i==0) {
+      road = new PIXI.Sprite(roadOutTexture);
+      road.position.set(0, y + i * roadDist);
+      map.addChild(road);
+    }
+    if (i==numberRoads-1) {
+      road = new PIXI.Sprite(roadInTexture);
+      road.position.set(0, y + i * roadDist);
+      map.addChild(road);
+    }
+    if (i>0) {
+      var roadSeparator = new PIXI.Sprite(roadSeparatorTexture);
+      roadSeparator.position.set(- ~~(100*Math.random()), y + i * roadDist - 8);
+      map.addChild(roadSeparator);
+    }
+  }
+}
+
+
+function allocChunk (i, random) {
+  var y = -480 * i;
+
+  if (i > 0) {
+    var numberRoads = 3;
+    for (var j=0; j<numberRoads; ++j) {
+      addCarPath(y - 100 - j*roadDist, j % 2 === 0, 0.1, 4, 5, 0.3);
+    }
+    addRoads(y - 100 - (numberRoads-1) * roadDist, numberRoads);
+  }
+
+  if (i > 2) {
+    addDirectionalParticleSpawner(Snowball, [300, y-450], -Math.PI/2 - 0.5, 0.3, 200, [10, -10]);
+  }
+  if (i > 4) {
+    addDirectionalParticleSpawner(Fireball, [0,   y-450], -Math.PI/2 + 0.5, 0.3, 200, [10, -10]);
+  }
+}
 
 /*
 //,{ speed: 20, Particle: Snowball, pos: [ WIDTH/2, HEIGHT/2 ], vel: .3, rotate: 0.33 * Math.PI }
 */
+
+var chunkAllocRandom = seedrandom("grewebisawesome");
 
 function createDeadCarrot (score) {
   if (score.opacity > 0) {
@@ -545,17 +606,10 @@ scoresP.then(function (scores) {
 
 var lastAbsoluteTime;
 var t = 0;
-function loop (absoluteTime) {
-  if (player.dead) {
-    // TODO ugly do better later
-    submitScore(player.x, player.y)
-      .delay(5000)
-      .fin(function () {
-        window.location.reload();
-      });
-    return;
-  }
 
+var currentAlloc = -1;
+
+function loop (absoluteTime) {
   requestAnimFrame(loop);
 
   if (keyboard.paused()) {
@@ -568,22 +622,19 @@ function loop (absoluteTime) {
   lastAbsoluteTime = absoluteTime;
   t += dt;
 
-  player.update(t, dt);
+  if (!player.dead) {
+    
+    var car = cars.collides(player);
+    if (car) {
+      player.onCarHit(car);
+    }
 
-  particles.update(t, dt);
-
-  cars.update(t, dt);
-
-  var car = cars.collides(player);
-  if (car) {
-    player.onCarHit(car);
-  }
-
-  var particle = particles.collides(player);
-  if (particle) {
-    particle.explodeInWorld(world);
-    particle.touchPlayer(player);
-    particle.parent.removeChild(particle);
+    var particle = particles.collides(player);
+    if (particle) {
+      particle.explodeInWorld(world);
+      particle.hitPlayer(player);
+      particle.parent.removeChild(particle);
+    }
   }
 
   cars.children.forEach(function (spawner) {
@@ -607,11 +658,22 @@ function loop (absoluteTime) {
     player.dead = 1;
     world.playerDied(player);
     world.removeChild(player);
+    submitScore(player)
+      .delay(5000)
+      .fin(function () {
+        window.location.reload();
+      })
+      .done();
+  }
+
+  var headChunk = - ~~(player.maxProgress / HEIGHT);
+  var aheadChunk = headChunk + 1;
+  if (aheadChunk > currentAlloc) {
+    allocChunk(++currentAlloc, chunkAllocRandom);
   }
 
   renderer.render(stage);
 
-  map.update(t, dt);
   world.update(t, dt);
 
   world.focusOn(player);
