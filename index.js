@@ -219,6 +219,65 @@ Map.prototype.update = function () {
 };
 
 
+function tilePIXI (size) {
+  return function (baseTexture, x, y) {
+    return new PIXI.Texture(baseTexture, { x: x * size, y: y * size, width: size, height: size });
+  };
+};
+var tile64 = tilePIXI(64);
+
+var fireExplosionTexture = PIXI.Texture.fromImage("img/fireexplosion.png");
+var fireExplosionTextures = [
+  tile64(fireExplosionTexture, 0, 0),
+  tile64(fireExplosionTexture, 1, 0),
+  tile64(fireExplosionTexture, 2, 0)
+];
+var snowExplosionTexture = PIXI.Texture.fromImage("img/snowexplosion.png");
+var snowExplosionTextures = [
+  tile64(snowExplosionTexture, 0, 0),
+  tile64(snowExplosionTexture, 1, 0),
+  tile64(snowExplosionTexture, 2, 0)
+];
+var playerExplosionTexture = PIXI.Texture.fromImage("img/playerexplosion.png");
+var playerExplosionTextures = [
+  tile64(playerExplosionTexture, 0, 0),
+  tile64(playerExplosionTexture, 1, 0),
+  tile64(playerExplosionTexture, 2, 0)
+];
+function ParticleExplosion (ref, textures, speed) {
+  PIXI.DisplayObjectContainer.call(this);
+  this.position.x = ref.position.x;
+  this.position.y = ref.position.y;
+  this.speed = speed || 100;
+  this.width = ref.width;
+  this.height = ref.width;
+  this.rotation = Math.random() * 2 * Math.PI;
+  this.pivot.set(32, 32);
+  this.sprites = textures.map(function (t) {
+    return new PIXI.Sprite(t);
+  });
+}
+ParticleExplosion.prototype = Object.create(PIXI.DisplayObjectContainer.prototype);
+ParticleExplosion.prototype.constructor = ParticleExplosion;
+ParticleExplosion.prototype.update = function (t) {
+  if (!this.current) {
+    this.start = t;
+  }
+  var i = ~~((t-this.start)/this.speed);
+  if (i < 3) {
+    var s = this.sprites[i];
+    if (s !== this.current) {
+      if (this.current) this.removeChild(this.current);
+      this.addChild(s);
+      this.current = s;
+    }
+  }
+  else {
+    this.parent.removeChild(this);
+  }
+};
+
+
 function World () {
   PIXI.DisplayObjectContainer.call(this);
 
@@ -229,13 +288,19 @@ World.prototype.update = updateChildren;
 World.prototype.playerDied = function (player) {
   var obj = player.getScore();
   obj.opacity = 1;
-  this.addChild(new DeadCarrot(obj, true, true));
+  var self = this;
+  setTimeout(function () {
+    self.addChild(new DeadCarrot(obj, true, true));
+  }, 600);
+  this.addChild(new ParticleExplosion(player, playerExplosionTextures, 200));
 };
 World.prototype.snowballExplode = function (snowball) {
   play(SOUNDS.snowballHit, snowball, 0.6);
+  this.addChild(new ParticleExplosion(snowball, snowExplosionTextures));
 };
 World.prototype.fireballExplode = function (fireball) {
   play(SOUNDS.burn, fireball, 0.3);
+  this.addChild(new ParticleExplosion(fireball, fireExplosionTextures));
 };
 World.prototype.focusOn = function (player) {
   y = HEIGHT-Math.max(player.position.y, player.maxProgress+120);
