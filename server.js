@@ -68,21 +68,21 @@ app.put("/scores", function (req, res) {
     if (
       typeof item.player === "string" && /^[a-zA-Z0-9]{3,20}$/.exec(item.player) &&
       typeof item.x === "number" && !isNaN(item.x) &&
-      typeof item.y === "number" && !isNaN(item.y) &&
+      typeof item.score === "number" && !isNaN(item.score) &&
       0 <= item.x && item.x <= 320 &&
-      item.y > 0
+      item.score > 0
     ) {
       var collection = db.collection(COLL);
       item = {
         player: item.player,
         x: Math.round(item.x),
-        y: Math.round(item.y),
+        score: Math.round(item.score),
         date: Date.now()
       };
       return Q.ninvoke(collection, "insert", item).thenResolve(item);
     }
     else {
-      throw new Error("score requirement: { player /* alphanum in 3-20 chars */, x, y }");
+      throw new Error("score requirement: { player /* alphanum in 3-20 chars */, x, score }");
     }
   })
   .then(function (item) {
