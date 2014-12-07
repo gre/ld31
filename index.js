@@ -8,6 +8,15 @@ var jsfxr = require("./jsfxr");
 
 var DEBUG = false;
 
+
+function tilePIXI (size) {
+  return function (baseTexture, x, y) {
+    return new PIXI.Texture(baseTexture, { x: x * size, y: y * size, width: size, height: size });
+  };
+};
+var tile64 = tilePIXI(64);
+var tile24 = tilePIXI(24);
+
 function mix (a, b, x) {
   return x * b + (1-x)*a;
 }
@@ -219,12 +228,20 @@ Map.prototype.update = function () {
 };
 
 
-function tilePIXI (size) {
-  return function (baseTexture, x, y) {
-    return new PIXI.Texture(baseTexture, { x: x * size, y: y * size, width: size, height: size });
-  };
-};
-var tile64 = tilePIXI(64);
+var footsTexture = PIXI.Texture.fromImage("img/foots.png");
+var footsTextures = [0,1,2,3,4,5,6,7,8,9].map(function (i) {
+  return tile24(footsTexture, 0, i);
+});
+function Foot (position) {
+  PIXI.Sprite.call(this, footsTextures[~~(Math.random()*footsTextures.length)]);
+  this.position.x = position.x;
+  this.position.y = position.y;
+  this.rotation = Math.random() * 2 * Math.PI;
+  this.pivot.set(12, 12);
+}
+Foot.prototype = Object.create(PIXI.Sprite.prototype);
+Foot.prototype.constructor = Foot;
+
 
 var fireExplosionTexture = PIXI.Texture.fromImage("img/fireexplosion.png");
 var fireExplosionTextures = [
@@ -342,6 +359,7 @@ Player.prototype.update = function (t, dt) {
   this.height = 40 * scale;
 
   if (x || y) {
+    if (Math.random()<0.8) footprints.addChild(new Foot(this.position));
     this.setTexture(playerWalkTextures[~~(t / 150) % playerWalkTextures.length]);
   }
   else {
@@ -669,12 +687,14 @@ var player = new Player();
 var cars = new SpawnerCollection();
 var particles = new SpawnerCollection();
 var deadCarrots = new PIXI.DisplayObjectContainer();
+var footprints = new PIXI.DisplayObjectContainer();
 deadCarrots.update = updateChildren;
 
 player.controls = keyboard;
 
 stage.addChild(world);
 world.addChild(map);
+world.addChild(footprints);
 world.addChild(deadCarrots);
 world.addChild(player);
 world.addChild(cars);
