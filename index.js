@@ -37,7 +37,6 @@ function play (src, obj, volume) {
   var audio = new Audio();
   audio.src = src;
   audio.volume = volume;
-  console.log(audio.volume);
   audio.play();
 }
 
@@ -65,6 +64,7 @@ var stage = new PIXI.Stage(0xFFFFFF);
 var renderer = PIXI.autoDetectRenderer(WIDTH, HEIGHT, { resolution: window.devicePixelRatio });
 renderer.view.style.width = WIDTH+"px";
 renderer.view.style.height = HEIGHT+"px";
+renderer.view.style.border = "6px ridge #88B";
 document.body.style.padding = "0";
 document.body.style.margin = "0";
 var wrapper = document.createElement("div");
