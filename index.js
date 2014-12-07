@@ -586,9 +586,11 @@ function KeyboardControls () {
 KeyboardControls.prototype = {
   _onFocus: function (e) {
     this._paused = 0;
+    renderer.view.style.opacity = 1;
   },
   _onBlur: function (e) {
     this._paused = 1;
+    renderer.view.style.opacity = 0.5;
   },
   _onDown: function (e) {
     if ([37,38,39,40].indexOf(e.which) >= 0)
@@ -979,7 +981,7 @@ function loop (absoluteTime) {
     world.playerDied(player);
     world.removeChild(player);
     submitScore(player)
-      .delay(5000)
+      .delay(6000)
       .fin(function () {
         window.location.reload();
       })
