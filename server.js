@@ -38,6 +38,7 @@ app.get("/scores", function (req, res) {
   .then(function (results) {
     var json = results.map(function (item) {
       delete item._id;
+      item.ago = Date.now() - item.date;
       return item;
     });
     res

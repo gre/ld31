@@ -239,12 +239,18 @@ Snowball.prototype.collides = spriteCollides;
 
 
 var deadCarrotTexture = PIXI.Texture.fromImage("img/dead_carrot.png");
-function DeadCarrot () {
-  PIXI.Sprite.call(this, deadCarrotTexture);
+function DeadCarrot (score) {
+  PIXI.DisplayObjectContainer.call(this);
+  var carrot = new PIXI.Sprite(deadCarrotTexture);
+  carrot.pivot.set(12, 24);
+  var text = new PIXI.Text(score.player, { align: 'center', font: 'normal 10px monospace', fill: '#999'});
+  text.position.set(-text.width/2, 0);
+  this.position.set(score.x, scoreToY(score.score));
+  this.addChild(carrot);
+  this.addChild(text);
 };
-DeadCarrot.prototype = Object.create(PIXI.Sprite.prototype);
+DeadCarrot.prototype = Object.create(PIXI.DisplayObjectContainer.prototype);
 DeadCarrot.prototype.constructor = DeadCarrot;
-
 
 
 
@@ -478,8 +484,7 @@ addDirectionalParticleSpawner(Snowball, [WIDTH,-1000], -3*Math.PI/4, 0.3, 200, [
 
 refreshScore().then(function (scores) {
   scores.forEach(function (score) {
-    var deadCarrot = new DeadCarrot();
-    deadCarrot.position.set(score.x, scoreToY(score.score));
+    var deadCarrot = new DeadCarrot(score);
     deadCarrots.addChild(deadCarrot);
   });
 });
