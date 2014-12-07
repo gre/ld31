@@ -8,6 +8,32 @@ var jsfxr = require("./jsfxr");
 
 var DEBUG = false;
 
+function loopAudio (src) {
+  var volume = 0;
+  var current;
+
+  function step () {
+    var audio = new Audio();
+    audio.addEventListener('ended', function () {
+      step();
+    });
+    audio.src = src;
+    audio.volume = volume;
+    audio.play();
+    current = audio;
+  }
+
+  step();
+
+  return {
+    setVolume: function (v) {
+      current.volume = volume = v;
+    }
+  };
+}
+
+var audio1 = loopAudio("audio/1.ogg");
+var audio2 = loopAudio("audio/2.ogg");
 
 function tilePIXI (size) {
   return function (baseTexture, x, y) {
@@ -90,9 +116,9 @@ requestAnimFrame(loop);
 setTimeout(getPlayerName, 100);
 
 function getPlayerName () {
-  var name = window.localStorage.player || prompt("What's your name? (3 to 20 alphanum characters)");
+  var name = window.localStorage.player || prompt("What's your name? (3 to 10 alphanum characters)");
   if (!name) return null;
-  if (! /^[a-zA-Z0-9]{3,20}$/.exec(name)) return getPlayerName();
+  if (! /^[a-zA-Z0-9]{3,10}$/.exec(name)) return getPlayerName();
   return window.localStorage.player = name;
 }
 
@@ -896,6 +922,7 @@ function loop (absoluteTime) {
   }
 
   var triggerCar = 0;
+  var danger = 0;
   cars.children.forEach(function (spawner) {
     spawner.children.forEach(function (car) {
       var particle = particles.collides(car);
@@ -903,7 +930,9 @@ function loop (absoluteTime) {
         particle.explodeInWorld(world);
         particle.parent.removeChild(particle);
       }
-      if (!car.neverSaw && dist(car, player) < 250) {
+      var d = dist(car, player);
+      danger += Math.pow(smoothstep(300, 100, d), 2);
+      if (!car.neverSaw && d < 250) {
         car.neverSaw = 1;
         triggerCar ++;
       }
@@ -914,6 +943,8 @@ function loop (absoluteTime) {
     play(SOUNDS.car);
   }
 
+  audio1.setVolume( keyboard.x() || keyboard.y() ? 1 : 0 );
+  audio2.setVolume( Math.min(danger / 2, 1) );
 
   if (player.maxProgress < 0) {
     player.life -= dt / 500;
