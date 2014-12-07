@@ -931,7 +931,7 @@ function loop (absoluteTime) {
         particle.parent.removeChild(particle);
       }
       var d = dist(car, player);
-      danger += Math.pow(smoothstep(400, 100, d), 2);
+      danger += Math.pow(smoothstep(300, 50, d), 2);
       if (!car.neverSaw && d < 250) {
         car.neverSaw = 1;
         triggerCar ++;
@@ -943,7 +943,7 @@ function loop (absoluteTime) {
     play(SOUNDS.car);
   }
 
-  audio1.setVolume( keyboard.x() || keyboard.y() ? 0.3 + Math.min(0.3, danger / 3) : 0 );
+  audio1.setVolume( keyboard.x() || keyboard.y() ? 0.2 + Math.min(0.7, danger / 3) : 0 );
   // audio2.setVolume( Math.min(danger * 0.6, 1) );
 
   if (player.maxProgress < 0) {
