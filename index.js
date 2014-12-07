@@ -33,7 +33,7 @@ function loopAudio (src) {
 }
 
 var audio1 = loopAudio("audio/1.ogg");
-var audio2 = loopAudio("audio/2.ogg");
+// var audio2 = loopAudio("audio/2.ogg");
 
 function tilePIXI (size) {
   return function (baseTexture, x, y) {
@@ -807,12 +807,12 @@ function addRoads (y, numberRoads) {
     map.addChild(road);
     if (i==0) {
       road = new PIXI.Sprite(roadOutTexture);
-      road.position.set(0, y + i * roadDist);
+      road.position.set(0, y + i * roadDist + 10);
       map.addChild(road);
     }
     if (i==numberRoads-1) {
       road = new PIXI.Sprite(roadInTexture);
-      road.position.set(0, y + i * roadDist);
+      road.position.set(0, y + i * roadDist - 10);
       map.addChild(road);
     }
     if (i>0) {
@@ -943,8 +943,8 @@ function loop (absoluteTime) {
     play(SOUNDS.car);
   }
 
-  audio1.setVolume( keyboard.x() || keyboard.y() ? Math.max(0, 0.3 - danger) : 0 );
-  audio2.setVolume( Math.min(danger * 0.6, 1) );
+  audio1.setVolume( keyboard.x() || keyboard.y() ? 0.3 + Math.min(0.3, danger / 3) : 0 );
+  // audio2.setVolume( Math.min(danger * 0.6, 1) );
 
   if (player.maxProgress < 0) {
     player.life -= dt / 500;
