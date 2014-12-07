@@ -25,6 +25,9 @@ function getPlayerName () {
 function getPlayerScore (player) {
   return ~~Math.max(0, -player.maxProgress);
 }
+function scoreToY (score) {
+  return -score;
+};
 
 function refreshScore () {
   return Qajax(scoresEndPoint)
@@ -37,7 +40,7 @@ function submitScore (x, y) {
     data: {
       player: getPlayerName(),
       x: ~~x,
-      y: getPlayerScore(player)
+      score: getPlayerScore(player)
     }
   })
   .then(Qajax.filterSuccess);
@@ -476,7 +479,7 @@ addDirectionalParticleSpawner(Snowball, [WIDTH,-1000], -3*Math.PI/4, 0.3, 200, [
 refreshScore().then(function (scores) {
   scores.forEach(function (score) {
     var deadCarrot = new DeadCarrot();
-    deadCarrot.position.set(score.x, score.y);
+    deadCarrot.position.set(score.x, scoreToY(score.score));
     deadCarrots.addChild(deadCarrot);
   });
 });
