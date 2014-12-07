@@ -248,6 +248,7 @@ function DeadCarrot (score) {
   this.position.set(score.x, scoreToY(score.score));
   this.addChild(carrot);
   this.addChild(text);
+  this.alpha = score.opacity;
 };
 DeadCarrot.prototype = Object.create(PIXI.DisplayObjectContainer.prototype);
 DeadCarrot.prototype.constructor = DeadCarrot;
@@ -482,11 +483,15 @@ addDirectionalParticleSpawner(Snowball, [WIDTH,-1000], -3*Math.PI/4, 0.3, 200, [
 //,{ speed: 20, Particle: Snowball, pos: [ WIDTH/2, HEIGHT/2 ], vel: .3, rotate: 0.33 * Math.PI }
 */
 
-refreshScore().then(function (scores) {
-  scores.forEach(function (score) {
+function createDeadCarrot (score) {
+  if (score.opacity > 0) {
     var deadCarrot = new DeadCarrot(score);
     deadCarrots.addChild(deadCarrot);
-  });
+  }
+}
+
+refreshScore().then(function (scores) {
+  scores.forEach(createDeadCarrot);
 });
 
 var lastAbsoluteTime;

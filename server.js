@@ -29,6 +29,9 @@ app.get("/", function (req, res) {
     .send("Nothing here.");
 });
 
+// TODO: vary with influence.
+var CARROT_PERSISTENCE = 2 * 3600 * 1000;
+
 app.get("/scores", function (req, res) {
   connectMongo(MONGO)
   .then(function (db) {
@@ -38,7 +41,7 @@ app.get("/scores", function (req, res) {
   .then(function (results) {
     var json = results.map(function (item) {
       delete item._id;
-      item.ago = Date.now() - item.date;
+      item.opacity = Math.max(0, 1 - (Date.now() - item.date) / CARROT_PERSISTENCE);
       return item;
     });
     res
