@@ -8,6 +8,8 @@ var jsfxr = require("./jsfxr");
 
 var DEBUG = false;
 
+var embeded = location.hash === "#embed";
+
 function loopAudio (src) {
   var volume = 0;
   var current;
@@ -104,7 +106,9 @@ var stage = new PIXI.Stage(0xFFFFFF);
 var renderer = PIXI.autoDetectRenderer(WIDTH, HEIGHT, { resolution: window.devicePixelRatio });
 renderer.view.style.width = WIDTH+"px";
 renderer.view.style.height = HEIGHT+"px";
-renderer.view.style.border = "6px ridge #88B";
+
+if (!embeded)
+  renderer.view.style.border = "6px ridge #88B";
 document.body.style.padding = "0";
 document.body.style.margin = "0";
 var wrapper = document.createElement("div");
@@ -112,8 +116,17 @@ wrapper.style.margin = "0 auto";
 wrapper.style.width = WIDTH+"px";
 document.body.appendChild(wrapper);
 wrapper.appendChild(renderer.view);
+
+if (!embeded) {
+  var link = document.createElement("a");
+  link.href = "http://ludumdare.com/compo/ludum-dare-31/?action=preview&uid=18803";
+  link.innerHTML = "LudumDare 31 entry";
+  wrapper.appendChild(link);
+}
+
 requestAnimFrame(loop);
 setTimeout(getPlayerName, 100);
+
 
 function getPlayerName () {
   var name = window.localStorage.player || prompt("What's your name? (3 to 10 alphanum characters)");

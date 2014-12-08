@@ -70,7 +70,7 @@ app.put("/scores", function (req, res) {
   .then(function (db) {
     var item = req.body;
     if (
-      typeof item.player === "string" && /^[a-zA-Z0-9]{3,20}$/.exec(item.player) &&
+      typeof item.player === "string" && /^[a-zA-Z0-9]{3,10}$/.exec(item.player) &&
       typeof item.x === "number" && !isNaN(item.x) &&
       typeof item.score === "number" && !isNaN(item.score) &&
       0 <= item.x && item.x <= 320 &&
@@ -86,7 +86,7 @@ app.put("/scores", function (req, res) {
       return Q.ninvoke(collection, "insert", item).thenResolve(item);
     }
     else {
-      throw new Error("score requirement: { player /* alphanum in 3-20 chars */, x, score }");
+      throw new Error("score requirement: { player /* alphanum in 3-10 chars */, x, score }");
     }
   })
   .then(function (item) {
