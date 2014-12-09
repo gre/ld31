@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+require('date-utils');
+
 var MongoClient = require('mongodb').MongoClient;
 var express = require("express");
 var fs = require("fs");
@@ -33,10 +35,11 @@ app.get("/", function (req, res) {
 var CARROT_PERSISTENCE = 2 * 3600 * 1000;
 
 app.get("/scores", function (req, res) {
+  var timeOfDay = +Date.today();
   connectMongo(MONGO)
   .then(function (db) {
     var collection = db.collection(COLL);
-    return Q.ninvoke(collection.find(), "toArray");
+    return Q.ninvoke(collection.find({ "date" : { "$gt": timeOfDay } }).sort({ "score": -1 }), "toArray");
   })
   .then(function (results) {
     var json = results.map(function (item) {
