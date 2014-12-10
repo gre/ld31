@@ -32,7 +32,7 @@ app.get("/", function (req, res) {
 });
 
 // TODO: vary with influence.
-var CARROT_PERSISTENCE = 2 * 3600 * 1000;
+var CARROT_PERSISTENCE = 8 * 3600 * 1000;
 
 app.get("/scores", function (req, res) {
   var timeOfDay = +Date.today();
