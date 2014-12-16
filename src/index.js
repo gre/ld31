@@ -24,9 +24,10 @@ socket.on('disconnect', function(){ console.log("DISCONNECT"); });
 
 ntp.init(socket);
 
-setInterval(function(){
- console.log(ntp.offset());
-}, 1000);
+function now () {
+  var off = ntp.offset();
+  return Date.now();
+}
 
 function loopAudio (src) {
   var volume = 0;
@@ -617,9 +618,9 @@ var carTextures = [
   PIXI.Texture.fromImage("/img/car10.png")
 ];
 
-function Car (vel) {
-  PIXI.Sprite.call(this, carTextures[~~(Math.random()*carTextures.length)]);
-  this.vel = vel;
+function Car (seed) {
+  var random = seedrandom(seed);
+  PIXI.Sprite.call(this, carTextures[~~(random() * carTextures.length)]);
   this.width = 0;
   this.height = 0;
   if (DEBUG) world.addChild(new DebugSprite(this));
@@ -646,8 +647,10 @@ function KeyboardControls () {
   this._keys = {};
   document.body.addEventListener("keydown", this._onDown.bind(this), false);
   document.body.addEventListener("keyup", this._onUp.bind(this), false);
+  /*
   window.addEventListener("focus", this._onFocus.bind(this), false);
   window.addEventListener("blur", this._onBlur.bind(this), false);
+  */
 }
 KeyboardControls.prototype = {
   _onFocus: function (e) {
@@ -742,16 +745,16 @@ score.position.y = 10;
 life.position.x = WIDTH - 60;
 life.position.y = 10;
 
-function addCarPath (y, leftToRight, vel, maxFollowing, maxHole, spacing) {
+function addCarPath (y, leftToRight, vel, maxFollowing, maxHole, spacing, random) {
   var length = 10;
   var seq = [];
   for (var i=0; i<length; ++i) {
-    var n = (i%2 ? -1 : 1) * ~~(1 + ( (i%2 ? maxHole : maxFollowing) - 1) * Math.random());
+    var n = (i%2 ? -1 : 1) * ~~(1 + ( (i%2 ? maxHole : maxFollowing) - 1) * random());
     seq.push(n);
   }
   var pos = [ leftToRight ? -100 : WIDTH+100, y ];
   var spawner = new Spawner({
-    spawn: function () { return new Car(); },
+    spawn: function (i) { return new Car(i); },
     pos: pos,
     ang: leftToRight ? 0 : Math.PI,
     vel: vel,
@@ -759,6 +762,7 @@ function addCarPath (y, leftToRight, vel, maxFollowing, maxHole, spacing) {
     seq: seq,
     livingBound: { x: -100, y: y, height: 100, width: WIDTH+200 }
   });
+  spawner.init(now());
   cars.addChild(spawner);
   return spawner;
 }
@@ -773,6 +777,7 @@ function addDirectionalParticleSpawner (Particle, pos, ang, vel, speed, seq) {
     seq: seq,
     life: 6000
   });
+  spawner.init(now());
   particles.addChild(spawner);
   return spawner;
 }
@@ -788,6 +793,7 @@ function addRotatingParticleSpawner (Particle, pos, rotate, vel, speed, seq) {
     life: 6000,
     angle: Math.random() * 2 * Math.PI
   });
+  spawner.init(now());
   particles.addChild(spawner);
   return spawner;
 }
@@ -838,7 +844,7 @@ function allocChunk (i, random) {
       maxFollowing = 3 + (i / 20) * random() + 6 * random() * random();
       maxHole = 8 - 5 * mix(smoothstep(0, 20, i * random()), random(), 0.5) + random() / (i / 5);
       spacing = 0.2 + 0.3 * random();
-      addCarPath(y - 100 - j*roadDist, j % 2 === 0, vel, maxFollowing, maxHole, spacing);
+      addCarPath(y - 100 - j*roadDist, j % 2 === 0, vel, maxFollowing, maxHole, spacing, random);
     }
     addRoads(y - 100 - (nb-1) * roadDist, nb);
   }
@@ -888,11 +894,10 @@ scoresP.then(function (scores) {
 }).done();
 
 var lastAbsoluteTime;
-var t = 0;
 
 var currentAlloc = -1;
 
-function loop (absoluteTime) {
+function loop () {
   requestAnimFrame(loop);
 
   if (keyboard.paused()) {
@@ -900,10 +905,10 @@ function loop (absoluteTime) {
     return;
   }
 
-  if (!lastAbsoluteTime) lastAbsoluteTime = absoluteTime;
-  var dt = Math.min(100, absoluteTime - lastAbsoluteTime);
-  lastAbsoluteTime = absoluteTime;
-  t += dt;
+  var t = now();
+  if (!lastAbsoluteTime) lastAbsoluteTime = t;
+  var dt = Math.min(100, t - lastAbsoluteTime);
+  lastAbsoluteTime = t;
 
   // general vars for this loop time
   var danger = 0;
