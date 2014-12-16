@@ -6,12 +6,14 @@ var updateChildren = require("./behavior/updateChildren");
 var findChildrenCollide = require("./behavior/findChildrenCollide");
 
 var SpawnerDefault = {
+  // The initial absolute time
   initialTime: 0,
-  
-  // Does the spawner rotates?
-  rotate: 0,
 
+  // The duration in ms between each particle tick
   speed: 1000,
+  
+  // angle in radians the spawner will rotate for each particle tick
+  rotate: 0,
 
   // Particle initial position
   pos: [0,0],
@@ -33,7 +35,10 @@ var SpawnerDefault = {
    */
   spawn: null,
 
+  // Particle life
   life: 10000,
+
+  // optionally give a bounding box where the particles lives (dies outside)
   livingBound: null,
 
   // Determinist Randomness
@@ -117,7 +122,8 @@ Spawner.prototype.update = function (t, dt) {
   // Trigger all missing particles or do nothing
   while (this.lastti < currentti) {
     var ti = ++this.lastti;
-    var delta = t - ti * this.speed;
+    var start = ti * this.speed;
+    var delta = t - start;
   
     if (this.pattern) {
       var shouldSkip = this.pattern[this._ip] === 0;
@@ -137,7 +143,7 @@ Spawner.prototype.update = function (t, dt) {
     particle.position.x = this.pos[0] + (random() - 0.5) * this.randPos + particle._vel[0] * delta;
     particle.position.y = this.pos[1] + (random() - 0.5) * this.randPos + particle._vel[1] * delta;
 
-    particle._dieAfter = t + this.life + this.randLife * (random()-0.5);
+    particle._dieAfter = start + this.life + this.randLife * (random()-0.5);
     this.addChild(particle);
   }
 
