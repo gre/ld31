@@ -86,6 +86,10 @@ Object.defineProperty(Spawner.prototype, "seq", {
   }
 });
 
+/**
+ * init the spawner from a given time (usually call once with the t given to update)
+ * it can be used to trigger a lot of bullets from the past
+ */
 Spawner.prototype.init = function (currentTime) {
   var t = currentTime - this.initialTime;
   var ti = Math.floor(t / this.speed);
@@ -101,11 +105,6 @@ Spawner.prototype.init = function (currentTime) {
 };
 
 Spawner.prototype.update = function (t, dt) {
-  if (!this._init) {
-    this.init(t);
-    this._init = true;
-  }
-
   updateChildren.apply(this, arguments);
   this.children.forEach(function (child) {
     // Increment velocity

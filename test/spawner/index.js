@@ -31,6 +31,7 @@ function spawn2 (i) {
   { spawn: spawn2, pos: [400, 200], rotate: 0.2, vel: 0.05, speed: 200, seq: [5, -4, 6, -2, 2, -8] }
 ].forEach(function (spawnerParams) {
   var spawner = new Spawner(spawnerParams);
+  spawner.init(Date.now()-5000);
   spawners.addChild(spawner);
 })
 
