@@ -628,7 +628,7 @@ function Car (seed) {
 Car.prototype = Object.create(PIXI.Sprite.prototype);
 Car.prototype.constructor = Car;
 Car.prototype.update = function () {
-  this.width  = this._vel[0] < 0 ? -84 : 84; // FIXME hack...
+  this.width  = this.vel[0] < 0 ? -84 : 84; // FIXME hack...
   this.height = 48;
 };
 Car.prototype.hitBox = function () {

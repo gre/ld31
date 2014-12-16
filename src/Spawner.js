@@ -108,8 +108,8 @@ Spawner.prototype.update = function (t, dt) {
   updateChildren.apply(this, arguments);
   this.children.forEach(function (child) {
     // Increment velocity
-    child.position.x += child._vel[0] * dt;
-    child.position.y += child._vel[1] * dt;
+    child.position.x += child.vel[0] * dt;
+    child.position.y += child.vel[1] * dt;
 
     if (t > child._dieAfter || this.livingBound && !child.collides(this.livingBound)) {
       this.removeChild(child);
@@ -135,12 +135,12 @@ Spawner.prototype.update = function (t, dt) {
     var particle = this.spawn(ti);
     var angle = this.ang + this.randAngle * (random() - 0.5) + (this.rotate * ti) % (2*Math.PI);
     var vel = this.vel + this.randVel * (random() - 0.5);
-    particle._vel = [
+    particle.vel = [
       vel * Math.cos(angle),
       -vel * Math.sin(angle)
     ];
-    particle.position.x = this.pos[0] + this.randPos * (random() - 0.5) + particle._vel[0] * delta;
-    particle.position.y = this.pos[1] + this.randPos * (random() - 0.5) + particle._vel[1] * delta;
+    particle.position.x = this.pos[0] + this.randPos * (random() - 0.5) + particle.vel[0] * delta;
+    particle.position.y = this.pos[1] + this.randPos * (random() - 0.5) + particle.vel[1] * delta;
 
     particle._dieAfter = start + this.life + this.randLife * (random()-0.5);
     this.addChild(particle);
