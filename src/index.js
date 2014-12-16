@@ -1,14 +1,32 @@
 var PIXI = require("pixi.js");
 var requestAnimFrame = require("raf");
 var Qajax = require("qajax");
-var _ = require("lodash");
 var smoothstep = require("smoothstep");
 var seedrandom = require("seedrandom");
-var jsfxr = require("./jsfxr");
+var jsfxr = require("jsfxr");
+var io = require("socket.io-client");
+
+require("socket-ntp/client/ntp")
+var ntp = window.ntp;
+
+
+var Spawner = require("./Spawner");
+
 
 var DEBUG = false;
+var ENDPOINT = "";//window.ENDPOINT || "http://ld31.greweb.fr";
+var EMBED = location.hash === "#embed";
 
-var embeded = location.hash === "#embed";
+var socket = io();
+
+socket.on('connect', function(){ console.log("CONNECT"); });
+socket.on('disconnect', function(){ console.log("DISCONNECT"); });
+
+ntp.init(socket);
+
+setInterval(function(){
+ console.log(ntp.offset());
+}, 1000);
 
 function loopAudio (src) {
   var volume = 0;
@@ -34,8 +52,8 @@ function loopAudio (src) {
   };
 }
 
-var audio1 = loopAudio("audio/1.ogg");
-// var audio2 = loopAudio("audio/2.ogg");
+var audio1 = loopAudio("/audio/1.ogg");
+// var audio2 = loopAudio("/audio/2.ogg");
 
 function tilePIXI (size) {
   return function (baseTexture, x, y) {
@@ -84,7 +102,7 @@ function play (src, obj, volume) {
 
 var WIDTH = 320;
 var HEIGHT = 480;
-var scoresEndPoint = "http://ld31.greweb.fr/scores";
+var scoresEndPoint = ENDPOINT+"/scores";
 
 var scoresP = refreshScore();
 
@@ -107,7 +125,7 @@ var renderer = PIXI.autoDetectRenderer(WIDTH, HEIGHT, { resolution: window.devic
 renderer.view.style.width = WIDTH+"px";
 renderer.view.style.height = HEIGHT+"px";
 
-if (!embeded)
+if (!EMBED)
   renderer.view.style.border = "6px ridge #88B";
 document.body.style.padding = "0";
 document.body.style.margin = "0";
@@ -117,7 +135,7 @@ wrapper.style.width = WIDTH+"px";
 document.body.appendChild(wrapper);
 wrapper.appendChild(renderer.view);
 
-if (!embeded) {
+if (!EMBED) {
   var link = document.createElement("a");
   link.href = "http://ludumdare.com/compo/ludum-dare-31/?action=preview&uid=18803";
   link.innerHTML = "LudumDare 31 entry";
@@ -168,11 +186,36 @@ function collideRectangle (r1, r2) {
       (r2.y + r2.height) < r1.y);
 }
 
+function rectIntersect (a, b) {
+  var x1 = a.x;
+  var x2 = a.x + a.width;
+  var y1 = a.y;
+  var y2 = a.y + a.height;
+  var x3 = b.x;
+  var x4 = b.x + b.width;
+  var y3 = b.y;
+  var y4 = b.y + b.height;
+  var x5 = Math.max(x1, x3);
+  var y5 = Math.max(y1, y3);
+  var x6 = Math.min(x2, x4);
+  var y6 = Math.min(y2, y4);
+  return {
+    from: new PIXI.Point(x5, y5),
+    to: new PIXI.Point(x6, y6),
+    width: x6-x5,
+    height: y6-y5
+  };
+}
+
 function velUpdate (t, dt) {
   if (this.vel) {
     this.position.x += this.vel[0] * dt;
     this.position.y += this.vel[1] * dt;
   }
+}
+
+function spriteIntersect (a, b) {
+  return rectIntersect(a.hitBox(), b.hitBox());
 }
 
 function spriteCollides (sprite) {
@@ -195,7 +238,7 @@ function updateChildren (t, dt) {
 }
 
 var mapTextures = [
-  PIXI.Texture.fromImage("img/map1.png")
+  PIXI.Texture.fromImage("/img/map1.png")
 ];
 function MapTile (index) {
   PIXI.Sprite.call(this, mapTextures[index % mapTextures.length]);
@@ -205,9 +248,9 @@ MapTile.prototype.constructor = MapTile;
 
 
 var highscoreIcons = [
-  PIXI.Texture.fromImage("img/scoreIcon1.png"),
-  PIXI.Texture.fromImage("img/scoreIcon2.png"),
-  PIXI.Texture.fromImage("img/scoreIcon3.png")
+  PIXI.Texture.fromImage("/img/scoreIcon1.png"),
+  PIXI.Texture.fromImage("/img/scoreIcon2.png"),
+  PIXI.Texture.fromImage("/img/scoreIcon3.png")
 ];
 function HighScore (score, i) {
   PIXI.DisplayObjectContainer.call(this);
@@ -229,7 +272,7 @@ HighScore.prototype = Object.create(PIXI.DisplayObjectContainer.prototype);
 HighScore.prototype.constructor = HighScore;
 
 
-var homeTexture = PIXI.Texture.fromImage("img/homebg.png");
+var homeTexture = PIXI.Texture.fromImage("/img/homebg.png");
 function HomeTile () {
   PIXI.Sprite.call(this, homeTexture);
   var self = this;
@@ -267,7 +310,7 @@ Map.prototype.update = function () {
 };
 
 
-var footsTexture = PIXI.Texture.fromImage("img/foots.png");
+var footsTexture = PIXI.Texture.fromImage("/img/foots.png");
 var footsTextures = [0,1,2,3,4,5,6,7,8,9].map(function (i) {
   return tile24(footsTexture, 0, i);
 });
@@ -282,19 +325,19 @@ Foot.prototype = Object.create(PIXI.Sprite.prototype);
 Foot.prototype.constructor = Foot;
 
 
-var fireExplosionTexture = PIXI.Texture.fromImage("img/fireexplosion.png");
+var fireExplosionTexture = PIXI.Texture.fromImage("/img/fireexplosion.png");
 var fireExplosionTextures = [
   tile64(fireExplosionTexture, 0, 0),
   tile64(fireExplosionTexture, 1, 0),
   tile64(fireExplosionTexture, 2, 0)
 ];
-var snowExplosionTexture = PIXI.Texture.fromImage("img/snowexplosion.png");
+var snowExplosionTexture = PIXI.Texture.fromImage("/img/snowexplosion.png");
 var snowExplosionTextures = [
   tile64(snowExplosionTexture, 0, 0),
   tile64(snowExplosionTexture, 1, 0),
   tile64(snowExplosionTexture, 2, 0)
 ];
-var playerExplosionTexture = PIXI.Texture.fromImage("img/playerexplosion.png");
+var playerExplosionTexture = PIXI.Texture.fromImage("/img/playerexplosion.png");
 var playerExplosionTextures = [
   tile64(playerExplosionTexture, 0, 0),
   tile64(playerExplosionTexture, 1, 0),
@@ -354,6 +397,12 @@ World.prototype.snowballExplode = function (snowball) {
   play(SOUNDS.snowballHit, snowball, 0.6);
   this.addChild(new ParticleExplosion(snowball, snowExplosionTextures));
 };
+World.prototype.carHitPlayerExplode = function (car, player) {
+  var rect = spriteIntersect(car, player);
+  var x = rect.from.x + (rect.to.x - rect.from.x) / 2;
+  var y = rect.from.y + (rect.to.y - rect.from.y) / 2;
+  this.addChild(new ParticleExplosion(/* FIXME HACK */{ position: new PIXI.Point(x, y), width: 100 }, snowExplosionTextures));
+}
 World.prototype.fireballExplode = function (fireball) {
   play(SOUNDS.burn, fireball, 0.3);
   this.addChild(new ParticleExplosion(fireball, fireExplosionTextures));
@@ -367,11 +416,11 @@ World.prototype.focusOn = function (player) {
 
 
 
-var playerTexture = PIXI.Texture.fromImage("img/player.png");
+var playerTexture = PIXI.Texture.fromImage("/img/player.png");
 var playerWalkTextures = [
-  PIXI.Texture.fromImage("img/player1.png"),
+  PIXI.Texture.fromImage("/img/player1.png"),
   playerTexture,
-  PIXI.Texture.fromImage("img/player2.png")
+  PIXI.Texture.fromImage("/img/player2.png")
 ];
 function Player () {
   PIXI.Sprite.call(this, playerTexture);
@@ -432,8 +481,9 @@ Player.prototype.onFireball = function (ball) {
   this.onProjectile(ball);
 };
 Player.prototype.onCarHit = function () {
-  play(SOUNDS.carHit, null, 1.0);
+  // this.life -= 100; // FIXME new gameplay to consider later
   this.life = 0;
+  play(SOUNDS.carHit, null, 1.0);
 };
 Player.prototype.collidesCar = function (car) {
   return collideRectangle(this, car);
@@ -451,10 +501,17 @@ Player.prototype.getScore = function () {
 };
 
 
-var fireballTexture = PIXI.Texture.fromImage("img/fireball.png");
-function Fireball (vel) {
+function OtherPlayer () {
+  Player.call(this);
+  this.alpha = 0.5;
+}
+OtherPlayer.prototype = Object.create(Player.prototype);
+OtherPlayer.prototype.constructor = OtherPlayer;
+
+
+var fireballTexture = PIXI.Texture.fromImage("/img/fireball.png");
+function Fireball () {
   PIXI.Sprite.call(this, fireballTexture);
-  this.vel = vel;
   var scale = 0.3 + 0.2 * Math.random() + 0.5 * Math.random() * Math.random();
   this.scale.set(scale, scale);
   if (DEBUG) world.addChild(new DebugSprite(this));
@@ -462,7 +519,6 @@ function Fireball (vel) {
 Fireball.prototype = Object.create(PIXI.Sprite.prototype);
 Fireball.prototype.constructor = Fireball;
 Fireball.prototype.update = function () {
-  velUpdate.apply(this, arguments);
   if (this.position.y > 0) this.parent.removeChild(this);
 };
 Fireball.prototype.hitBox = function () {
@@ -482,10 +538,9 @@ Fireball.prototype.hitPlayer = function () {
 Fireball.prototype.collides = spriteCollides;
 
 
-var snowballTexture = PIXI.Texture.fromImage("img/snowball.png");
-function Snowball (vel) {
+var snowballTexture = PIXI.Texture.fromImage("/img/snowball.png");
+function Snowball () {
   PIXI.Sprite.call(this, snowballTexture);
-  this.vel = vel;
   var scale = 0.5 + 0.5 * Math.random();
   this.scale.set(scale, scale);
   if (DEBUG) world.addChild(new DebugSprite(this));
@@ -493,7 +548,6 @@ function Snowball (vel) {
 Snowball.prototype = Object.create(PIXI.Sprite.prototype);
 Snowball.prototype.constructor = Snowball;
 Snowball.prototype.update = function () {
-  velUpdate.apply(this, arguments);
 };
 Snowball.prototype.hitBox = function () {
   return {
@@ -512,7 +566,7 @@ Snowball.prototype.hitPlayer = function () {
 Snowball.prototype.collides = spriteCollides;
 
 
-var debugTexture = PIXI.Texture.fromImage("img/debug.png");
+var debugTexture = PIXI.Texture.fromImage("/img/debug.png");
 function DebugSprite (observe) {
   PIXI.Sprite.call(this, debugTexture);
   this.o = observe;
@@ -527,7 +581,7 @@ DebugSprite.prototype.update = function () {
 }
 
 
-var deadCarrotTexture = PIXI.Texture.fromImage("img/dead_carrot.png");
+var deadCarrotTexture = PIXI.Texture.fromImage("/img/dead_carrot.png");
 function DeadCarrot (score, animated, me) {
   PIXI.DisplayObjectContainer.call(this);
   var carrot = new PIXI.Sprite(deadCarrotTexture);
@@ -551,16 +605,16 @@ DeadCarrot.prototype.update = function () {
 };
 
 var carTextures = [
-  PIXI.Texture.fromImage("img/car1.png"),
-  PIXI.Texture.fromImage("img/car2.png"),
-  PIXI.Texture.fromImage("img/car3.png"),
-  PIXI.Texture.fromImage("img/car4.png"),
-  PIXI.Texture.fromImage("img/car5.png"),
-  PIXI.Texture.fromImage("img/car6.png"),
-  PIXI.Texture.fromImage("img/car7.png"),
-  PIXI.Texture.fromImage("img/car8.png"),
-  PIXI.Texture.fromImage("img/car9.png"),
-  PIXI.Texture.fromImage("img/car10.png")
+  PIXI.Texture.fromImage("/img/car1.png"),
+  PIXI.Texture.fromImage("/img/car2.png"),
+  PIXI.Texture.fromImage("/img/car3.png"),
+  PIXI.Texture.fromImage("/img/car4.png"),
+  PIXI.Texture.fromImage("/img/car5.png"),
+  PIXI.Texture.fromImage("/img/car6.png"),
+  PIXI.Texture.fromImage("/img/car7.png"),
+  PIXI.Texture.fromImage("/img/car8.png"),
+  PIXI.Texture.fromImage("/img/car9.png"),
+  PIXI.Texture.fromImage("/img/car10.png")
 ];
 
 function Car (vel) {
@@ -573,9 +627,8 @@ function Car (vel) {
 Car.prototype = Object.create(PIXI.Sprite.prototype);
 Car.prototype.constructor = Car;
 Car.prototype.update = function () {
-  this.width  = this.vel[0] < 0 ? -84 : 84;
+  this.width  = this._vel[0] < 0 ? -84 : 84; // FIXME hack...
   this.height = 48;
-  velUpdate.apply(this, arguments);
 };
 Car.prototype.hitBox = function () {
   var w = Math.abs(this.width);
@@ -628,77 +681,6 @@ KeyboardControls.prototype = {
   }
 };
 
-var SpawnerDefault = {
-  pos: [0,0],
-  ang: 0,
-  vel: 0.1,
-  randPos: 0,
-  randAngle: 0,
-  randVel: 0,
-  rotate: 0,
-  speed: 0,
-  life: 10000,
-  randLife: 0,
-  livingBound: null
-};
-function Spawner (args) {
-  PIXI.DisplayObjectContainer.call(this);
-  _.extend(this, SpawnerDefault, args);
-  this.setSpeed(this.speed);
-  this.setSequence(this.seq);
-  this.lastPop = 0;
-  this.i = 0;
-}
-Spawner.prototype = Object.create(PIXI.DisplayObjectContainer.prototype);
-Spawner.prototype.constructor = Spawner;
-Spawner.prototype.setSpeed = function (speed) {
-  this.running = speed>0;
-  this.speed = speed;
-};
-Spawner.prototype.setSequence = function (seq) {
-  this.seq = seq;
-  this._seqi = 0;
-  this._seqj = 0;
-};
-Spawner.prototype.update = function (t) {
-  updateChildren.apply(this, arguments);
-  this.children.forEach(function (child) {
-    if (t > child._dieAfter || this.livingBound && !child.collides(this.livingBound)) {
-      child.parent.removeChild(child);
-    }
-  }, this);
-
-  if (!this.running || t < this.lastPop + this.speed) return;
-  this.lastPop = t;
-  
-  if (this.seq && this.seq.length > 0) {
-    var curSeq = this.seq[this._seqi];
-    var shouldSkip = curSeq < 0;
-    if (this._seqj >= Math.abs(curSeq)-1) {
-      this._seqi = this._seqi >= this.seq.length-1 ? 0 : this._seqi + 1;
-      this._seqj = 0;
-    }
-    else {
-      this._seqj ++;
-    }
-
-    if (shouldSkip) return;
-  }
-
-  var particle = new this.Particle();
-  particle.position.x = this.pos[0] + (Math.random() - 0.5) * this.randPos;
-  particle.position.y = this.pos[1] + (Math.random() - 0.5) * this.randPos;
-  var angle = this.ang + (Math.random() - 0.5) * this.randAngle + (this.rotate * this.i) % (2*Math.PI);
-  var vel = this.vel + (Math.random() - 0.5) * this.randVel;
-  particle.vel = [
-    vel * Math.cos(angle),
-    -vel * Math.sin(angle)
-  ];
-  particle._dieAfter = t + this.life + this.randLife * (Math.random()-0.5);
-  this.addChild(particle);
-  this.i ++;
-};
-Spawner.prototype.collides = findChildrenCollide;
 
 function SpawnerCollection () {
   PIXI.DisplayObjectContainer.call(this);
@@ -729,6 +711,7 @@ var cars = new SpawnerCollection();
 var particles = new SpawnerCollection();
 var deadCarrots = new PIXI.DisplayObjectContainer();
 var footprints = new PIXI.DisplayObjectContainer();
+var players = new PIXI.DisplayObjectContainer();
 deadCarrots.update = updateChildren;
 
 player.controls = keyboard;
@@ -737,6 +720,7 @@ stage.addChild(world);
 world.addChild(map);
 world.addChild(footprints);
 world.addChild(deadCarrots);
+world.addChild(players);
 world.addChild(player);
 world.addChild(cars);
 world.addChild(particles);
@@ -767,7 +751,7 @@ function addCarPath (y, leftToRight, vel, maxFollowing, maxHole, spacing) {
   }
   var pos = [ leftToRight ? -100 : WIDTH+100, y ];
   var spawner = new Spawner({
-    Particle: Car,
+    spawn: function () { return new Car(); },
     pos: pos,
     ang: leftToRight ? 0 : Math.PI,
     vel: vel,
@@ -781,7 +765,7 @@ function addCarPath (y, leftToRight, vel, maxFollowing, maxHole, spacing) {
 
 function addDirectionalParticleSpawner (Particle, pos, ang, vel, speed, seq) {
   var spawner = new Spawner({
-    Particle: Particle,
+    spawn: function () { return new Particle(); },
     pos: pos,
     ang: ang,
     vel: vel,
@@ -795,7 +779,7 @@ function addDirectionalParticleSpawner (Particle, pos, ang, vel, speed, seq) {
 
 function addRotatingParticleSpawner (Particle, pos, rotate, vel, speed, seq) {
   var spawner = new Spawner({
-    Particle: Particle,
+    spawn: function () { return new Particle(); },
     pos: pos,
     vel: vel,
     rotate: rotate,
@@ -810,10 +794,10 @@ function addRotatingParticleSpawner (Particle, pos, rotate, vel, speed, seq) {
 
 var roadDist = 60;
 
-var roadTexture = PIXI.Texture.fromImage("img/road.png");
-var roadInTexture = PIXI.Texture.fromImage("img/roadin.png");
-var roadOutTexture = PIXI.Texture.fromImage("img/roadout.png");
-var roadSeparatorTexture = PIXI.Texture.fromImage("img/roadseparator.png");
+var roadTexture = PIXI.Texture.fromImage("/img/road.png");
+var roadInTexture = PIXI.Texture.fromImage("/img/roadin.png");
+var roadOutTexture = PIXI.Texture.fromImage("/img/roadout.png");
+var roadSeparatorTexture = PIXI.Texture.fromImage("/img/roadseparator.png");
 
 function addRoads (y, numberRoads) {
   for (var i=0; i<numberRoads; ++i) {
@@ -908,8 +892,6 @@ var t = 0;
 
 var currentAlloc = -1;
 
-var angry = 0;
-
 function loop (absoluteTime) {
   requestAnimFrame(loop);
 
@@ -923,13 +905,38 @@ function loop (absoluteTime) {
   lastAbsoluteTime = absoluteTime;
   t += dt;
 
+  // general vars for this loop time
+  var danger = 0;
+
+  // Handle cars and collision with particles
+  var carNearby = 0;
+  cars.children.forEach(function (spawner) {
+    spawner.children.forEach(function (car) {
+      var particle = particles.collides(car);
+      if (particle) {
+        particle.explodeInWorld(world);
+        particle.parent.removeChild(particle);
+      }
+      var d = dist(car, player);
+      danger += Math.pow(smoothstep(300, 50, d), 2);
+      if (!car.neverSaw && d < 220) {
+        car.neverSaw = 1;
+        carNearby ++;
+      }
+    });
+  });
+  if (carNearby) {
+    play(SOUNDS.car);
+  }
+
+  var angry = 0;
+
   if (!player.dead) {
-    
     var car = cars.collides(player);
     if (car) {
+      world.carHitPlayerExplode(car, player);
       player.onCarHit(car);
     }
-
     var particle = particles.collides(player);
     if (particle) {
       particle.explodeInWorld(world);
@@ -940,28 +947,6 @@ function loop (absoluteTime) {
   }
 
   angry = Math.max(0, angry - dt * 0.001);
-
-  var triggerCar = 0;
-  var danger = 0;
-  cars.children.forEach(function (spawner) {
-    spawner.children.forEach(function (car) {
-      var particle = particles.collides(car);
-      if (particle) {
-        particle.explodeInWorld(world);
-        particle.parent.removeChild(particle);
-      }
-      var d = dist(car, player);
-      danger += Math.pow(smoothstep(300, 50, d), 2);
-      if (!car.neverSaw && d < 250) {
-        car.neverSaw = 1;
-        triggerCar ++;
-      }
-    });
-  });
-
-  if (triggerCar) {
-    play(SOUNDS.car);
-  }
 
   if (player.dead) {
     audio1.setVolume(0);
@@ -1020,4 +1005,31 @@ function loop (absoluteTime) {
   world.update(t, dt);
 
   world.focusOn(player);
+
+  socket.emit("move", player.position, player.width);
 }
+
+
+var playersByIds = {};
+
+socket.on("playermove", function (move) {
+  console.log("move", arguments);
+  var p = playersByIds[move.id];
+  if (!p) {
+    var p = new OtherPlayer();
+    p.position.x = -1000;
+    playersByIds[move.id] = p;
+    players.addChild(p);
+  }
+  p.height = p.width = move.width;
+  p.position.set(move.pos.x, move.pos.y);
+});
+
+socket.on("playerquit", function () {
+  var p = playersByIds[move.id];
+  if (p) {
+    players.removeChild(p);
+    delete playersByIds[move.id];
+  }
+});
+

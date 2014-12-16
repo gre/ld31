@@ -3,12 +3,17 @@
 require('date-utils');
 
 var MongoClient = require('mongodb').MongoClient;
-var express = require("express");
+
+var app = require('express')();
+var http = require('http').Server(app);
+var io = require('socket.io')(http);
+var serveStatic = require('serve-static')
 var fs = require("fs");
 var Q = require("q");
+var ntp = require("socket-ntp");
 
-var app = express();
 app.use(require("body-parser").json());
+app.use(serveStatic('.'));
 
 var MONGO = process.env.MONGOHQ_URL || 'mongodb://127.0.0.1:27017/ld31';
 var PORT = process.env.PORT || 9832;
@@ -25,11 +30,6 @@ connectMongo(MONGO)
   })
   .done();
 
-
-app.get("/", function (req, res) {
-  res
-    .send("Nothing here.");
-});
 
 // TODO: vary with influence.
 var CARROT_PERSISTENCE = 8 * 3600 * 1000;
@@ -109,4 +109,23 @@ app.put("/scores", function (req, res) {
   .done();
 });
 
-app.listen(PORT);
+// Real Time
+io.sockets.on('connection', function (socket) {
+  ntp.sync(socket);
+
+  console.log("connected", socket.id);
+  socket.broadcast.emit("playernew", socket.id);
+
+  socket.on("move", function (pos, width) {
+    socket.broadcast.emit("playermove", { id: socket.id, pos: pos, width: width });
+  });
+
+  socket.on("disconnect", function () {
+    console.log("disconnected", socket.id);
+    socket.broadcast.emit("playerquit", socket.id);
+  });
+});
+
+http.listen(PORT, function () {
+  console.log('listening on http://localhost:'+PORT);
+});
