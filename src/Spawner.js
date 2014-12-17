@@ -68,7 +68,7 @@ Object.defineProperty(Spawner.prototype, "seq", {
   set: function (seq) {
     this._seq = seq;
     if (seq) {
-      var seqlength = (this.seq||[]).reduce(function (acc, n) { return acc + Math.abs(n); }, 0);
+      var seqlength = seq.reduce(function (acc, n) { return acc + Math.abs(n); }, 0);
       var pattern = new Uint8Array(seqlength);
       var p = 0;
       for (var i=0; i<seq.length; ++i) {
@@ -132,7 +132,7 @@ Spawner.prototype.update = function (t, dt) {
 
     var random = seedrandom(this.seed + "" + ti);
 
-    var particle = this.spawn(ti);
+    var particle = this.spawn(ti, random);
     var angle = this.ang + this.randAngle * (random() - 0.5) + (this.rotate * ti) % (2*Math.PI);
     var vel = this.vel + this.randVel * (random() - 0.5);
     particle.vel = [

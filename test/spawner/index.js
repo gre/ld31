@@ -12,10 +12,13 @@ function spriteCollides (sprite) {
   return collideRectangle(this.hitBox(), sprite.hitBox ? sprite.hitBox() : sprite) ? this : null;
 }
 
-function Particle () {
-  PIXI.Sprite.call(this, PIXI.Texture.fromImage("./img/fireball.png"));
+function Particle (clr, radius) {
+  PIXI.Graphics.call(this);
+  this.beginFill(clr);
+  this.drawCircle(0, 0, radius);
+  this.endFill();
 }
-Particle.prototype = Object.create(PIXI.Sprite.prototype);
+Particle.prototype = Object.create(PIXI.Graphics.prototype);
 Particle.prototype.constructor = Particle;
 Particle.prototype.hitBox = function () {
   return {
@@ -35,20 +38,17 @@ var stage = new PIXI.Stage(0xFFFFFF);
 var spawners = new PIXI.DisplayObjectContainer();
 stage.addChild(spawners);
 
-function spawn (i) {
-  return new Particle();
-}
-function spawn2 (i) {
-  var p = new Particle();
-  p.width = p.height = 20;
-  return p;
+function spawn (i, random) {
+  var clr = ~~(random() * 0xFF) << 16 | ~~(random() * 0xFF) << 8 | ~~(random() * 0xFF);
+  var radius = ~~(5 + random() * 15);
+  return new Particle(clr, radius);
 }
 
 var viewport = { x: 0, y: 0, width: 800, height: 400 };
 
 [
-  { spawn: spawn, pos: [50, 50], vel: 0.1, speed: 500, seq: [ 1, -1, 2, -1, 3, -1 ] },
-  { spawn: spawn2, pos: [400, 200], rotate: 0.2, vel: 0.05, speed: 200, seq: [5, -4, 6, -2, 2, -8], life: 60000, livingBound: viewport }
+  { seed: "a", spawn: spawn, pos: [50, 50], vel: 0.1, speed: 500, seq: [ 1, -1, 2, -1, 3, -1 ] },
+  { seed: "b", spawn: spawn, pos: [400, 200], rotate: 0.2, vel: 0.05, speed: 200, seq: [5, -4, 6, -2, 2, -8], life: 60000, livingBound: viewport }
 ].forEach(function (spawnerParams) {
   var spawner = new Spawner(spawnerParams);
   spawner.init(Date.now()-5000);

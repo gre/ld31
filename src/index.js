@@ -1,20 +1,35 @@
 var PIXI = require("pixi.js");
 var requestAnimFrame = require("raf");
-var Qajax = require("qajax");
 var smoothstep = require("smoothstep");
 var seedrandom = require("seedrandom");
-var jsfxr = require("jsfxr");
 var io = require("socket.io-client");
 
 require("socket-ntp/client/ntp")
 var ntp = window.ntp;
 
+var audio = require("./audio");
+var network = require("./network");
+var conf = require("./conf");
+var font = require("./font");
 
+var World = require("./World");
+var Map = require("./Map");
 var Spawner = require("./Spawner");
+var DeadCarrot = require("./DeadCarrot");
+var Car = require("./Car");
+var Fireball = require("./Fireball");
+var Snowball = require("./Snowball");
+var Player = require("./Player");
+var KeyboardControls = require("./KeyboardControls");
+var SpawnerCollection = require("./SpawnerCollection");
 
+var findChildrenCollide = require("./behavior/findChildrenCollide");
+var updateChildren = require("./behavior/updateChildren");
+var velUpdate = require("./behavior/velUpdate");
 
-var DEBUG = false;
-var ENDPOINT = "";//window.ENDPOINT || "http://ld31.greweb.fr";
+var dist = require("./utils/dist");
+var mix = require("./utils/mix");
+
 var EMBED = location.hash === "#embed";
 
 var socket = io();
@@ -29,102 +44,16 @@ function now () {
   return Date.now();
 }
 
-function loopAudio (src) {
-  var volume = 0;
-  var current;
-
-  function step () {
-    var audio = new Audio();
-    audio.addEventListener('ended', function () {
-      step();
-    });
-    audio.src = src;
-    audio.volume = volume;
-    audio.play();
-    current = audio;
-  }
-
-  step();
-
-  return {
-    setVolume: function (v) {
-      current.volume = volume = v;
-    }
-  };
-}
-
-var audio1 = loopAudio("/audio/1.ogg");
+var audio1 = audio.loop("/audio/1.ogg");
 // var audio2 = loopAudio("/audio/2.ogg");
 
-function tilePIXI (size) {
-  return function (baseTexture, x, y) {
-    return new PIXI.Texture(baseTexture, { x: x * size, y: y * size, width: size, height: size });
-  };
-};
-var tile64 = tilePIXI(64);
-var tile24 = tilePIXI(24);
 
-function mix (a, b, x) {
-  return x * b + (1-x)*a;
-}
-
-function burnGen (f) {
-  return jsfxr([3,,0.2597,0.3427,0.3548,0.04+0.03*f,,0.1573,,,,,,,,,0.3027,-0.0823,1,,,,,0.5]);
-}
-
-var SOUNDS = {
-  burn: [burnGen(0),burnGen(0.2),burnGen(0.4),burnGen(0.6),burnGen(0.8),burnGen(1)],
-  snowballHit: jsfxr([3,0.03,0.1,0.14,0.28,0.92,,-0.02,,,,0.0155,0.8768,,,,,,0.35,,,,,0.5]),
-  carHit: jsfxr([0,,0.11,,0.1997,0.29,,-0.3599,-0.04,,,,,0.1609,,,,,1,,,,,0.5]),
-  car: [
-    jsfxr([3,0.3,0.7,,0.82,0.23,,-0.0999,,,,-0.02,,,,,0.62,,0.09,,,0.55,,0.5]),
-    jsfxr([3,0.4,0.7,,0.82,0.13,,0.08,,,,-0.02,,,,,0.62,,0.09,,,0.55,,0.5]),
-    jsfxr([2,0.29,0.6,,0.66,0.12,,-0.04,,,,-0.02,,,,,0.62,,0.08,,,0.33,-0.02,0.5])
-  ]
-};
-
-function play (src, obj, volume) {
-  if (typeof src === "object" && src.length) {
-    return play(src[~~(Math.random()*src.length)], obj, volume);
-  }
-  var volume = volume || 1;
-  if (obj) {
-    var dx = obj.x - player.x;
-    var dy = obj.y - player.y;
-    var dist = Math.sqrt(dx*dx+dy*dy);
-    volume *= Math.pow(smoothstep(350, 40, dist), 3);
-  }
-  if (!volume) return;
-  var audio = new Audio();
-  audio.src = src;
-  audio.volume = volume;
-  audio.play();
-}
-
-var WIDTH = 320;
-var HEIGHT = 480;
-var scoresEndPoint = ENDPOINT+"/scores";
-
-var scoresP = refreshScore();
-
-WebFontConfig = {
-  google: { families: [ 'Monda:400,700:latin' ] }
-};
-(function() {
-  var wf = document.createElement('script');
-  wf.src = ('https:' == document.location.protocol ? 'https' : 'http') +
-  '://ajax.googleapis.com/ajax/libs/webfont/1/webfont.js';
-  wf.type = 'text/javascript';
-  wf.async = 'true';
-  var s = document.getElementsByTagName('script')[0];
-  s.parentNode.insertBefore(wf, s);
-})();
 
 
 var stage = new PIXI.Stage(0xFFFFFF);
-var renderer = PIXI.autoDetectRenderer(WIDTH, HEIGHT, { resolution: window.devicePixelRatio });
-renderer.view.style.width = WIDTH+"px";
-renderer.view.style.height = HEIGHT+"px";
+var renderer = PIXI.autoDetectRenderer(conf.WIDTH, conf.HEIGHT, { resolution: window.devicePixelRatio });
+renderer.view.style.width = conf.WIDTH+"px";
+renderer.view.style.height = conf.HEIGHT+"px";
 
 if (!EMBED)
   renderer.view.style.border = "6px ridge #88B";
@@ -132,7 +61,7 @@ document.body.style.padding = "0";
 document.body.style.margin = "0";
 var wrapper = document.createElement("div");
 wrapper.style.margin = "0 auto";
-wrapper.style.width = WIDTH+"px";
+wrapper.style.width = conf.WIDTH+"px";
 document.body.appendChild(wrapper);
 wrapper.appendChild(renderer.view);
 
@@ -144,576 +73,19 @@ if (!EMBED) {
 }
 
 requestAnimFrame(loop);
-setTimeout(getPlayerName, 100);
+setTimeout(Player.getPlayerName, 100);
 
 
-function getPlayerName () {
-  var name = window.localStorage.player || prompt("What's your name? (3 to 10 alphanum characters)");
-  if (!name) return null;
-  if (! /^[a-zA-Z0-9]{3,10}$/.exec(name)) return getPlayerName();
-  return window.localStorage.player = name;
-}
-
-function getPlayerScore (player) {
-  return ~~Math.max(0, -player.maxProgress);
-}
-function scoreToY (score) {
-  return -score;
-};
-
-function dist (a, b) {
-  var dx = a.position.x - b.position.x;
-  var dy = a.position.y - b.position.y;
-  return Math.sqrt(dx * dx + dy * dy);
-}
-
-function refreshScore () {
-  return Qajax(scoresEndPoint)
-    .then(Qajax.filterSuccess)
-    .then(Qajax.toJSON);
-}
-function submitScore (player) {
-  return Qajax(scoresEndPoint, {
-    method: "PUT",
-    data: player.getScore()
-  })
-  .then(Qajax.filterSuccess);
-}
-
-function collideRectangle (r1, r2) {
-  return !(r2.x > (r1.x + r1.width) ||
-      (r2.x + r2.width) < r1.x ||
-      r2.y > (r1.y + r1.height) ||
-      (r2.y + r2.height) < r1.y);
-}
-
-function rectIntersect (a, b) {
-  var x1 = a.x;
-  var x2 = a.x + a.width;
-  var y1 = a.y;
-  var y2 = a.y + a.height;
-  var x3 = b.x;
-  var x4 = b.x + b.width;
-  var y3 = b.y;
-  var y4 = b.y + b.height;
-  var x5 = Math.max(x1, x3);
-  var y5 = Math.max(y1, y3);
-  var x6 = Math.min(x2, x4);
-  var y6 = Math.min(y2, y4);
-  return {
-    from: new PIXI.Point(x5, y5),
-    to: new PIXI.Point(x6, y6),
-    width: x6-x5,
-    height: y6-y5
-  };
-}
-
-function velUpdate (t, dt) {
-  if (this.vel) {
-    this.position.x += this.vel[0] * dt;
-    this.position.y += this.vel[1] * dt;
-  }
-}
-
-function spriteIntersect (a, b) {
-  return rectIntersect(a.hitBox(), b.hitBox());
-}
-
-function spriteCollides (sprite) {
-  return collideRectangle(this.hitBox(), sprite.hitBox ? sprite.hitBox() : sprite) ? this : null;
-}
-
-function findChildrenCollide (sprite) {
-  for (var k=0; k<this.children.length; ++k) {
-    var collide = this.children[k].collides(sprite);
-    if (collide) return collide;
-  }
-  return null;
-}
-
-function updateChildren (t, dt) {
-  this.children.forEach(function (child) {
-    if (child.update)
-      child.update(t, dt);
-  });
-}
-
-var mapTextures = [
-  PIXI.Texture.fromImage("/img/map1.png")
-];
-function MapTile (index) {
-  PIXI.Sprite.call(this, mapTextures[index % mapTextures.length]);
-};
-MapTile.prototype = Object.create(PIXI.Sprite.prototype);
-MapTile.prototype.constructor = MapTile;
-
-
-var highscoreIcons = [
-  PIXI.Texture.fromImage("/img/scoreIcon1.png"),
-  PIXI.Texture.fromImage("/img/scoreIcon2.png"),
-  PIXI.Texture.fromImage("/img/scoreIcon3.png")
-];
-function HighScore (score, i) {
-  PIXI.DisplayObjectContainer.call(this);
-  if (highscoreIcons[i]) {
-    var icon = new PIXI.Sprite(highscoreIcons[i]);
-    icon.position.set(0, 0);
-    this.addChild(icon);
-  }
-
-  var playerText = new PIXI.Text(score.player, { align: 'center', font: 'normal 10px Monda', fill: '#C40'});
-  playerText.position.set(30, 10);
-  this.addChild(playerText);
-
-  var scoreText = new PIXI.Text(score.score, { align: 'center', font: 'bold 12px Monda', fill: '#C40'});
-  scoreText.position.set(100, 10);
-  this.addChild(scoreText);
-};
-HighScore.prototype = Object.create(PIXI.DisplayObjectContainer.prototype);
-HighScore.prototype.constructor = HighScore;
-
-
-var homeTexture = PIXI.Texture.fromImage("/img/homebg.png");
-function HomeTile () {
-  PIXI.Sprite.call(this, homeTexture);
-  var self = this;
-  scoresP.then(function (scores) {
-    scores = [].concat(scores);
-    scores.sort(function (a, b) {
-      return b.score - a.score;
-    });
-    var bestScores = scores.splice(0, 5);
-    bestScores.forEach(function (score, i) {
-      var h = new HighScore(score, i);
-      h.position.set(40, 240 + 30 * i);
-      self.addChild(h);
-    });
-  }).done();
-};
-HomeTile.prototype = Object.create(PIXI.Sprite.prototype);
-HomeTile.prototype.constructor = HomeTile;
-
-function Map () {
-  PIXI.DisplayObjectContainer.call(this);
-  this.addChild(new HomeTile());
-  this.y = 0;
-  var y = 0;
-  for (var i=0; i<999; ++i) {
-    y -= 480;
-    var tile = new MapTile(i);
-    tile.position.y = y;
-    this.addChild(tile);
-  }
-}
-Map.prototype = Object.create(PIXI.DisplayObjectContainer.prototype);
-Map.prototype.constructor = Map;
-Map.prototype.update = function () {
-};
-
-
-var footsTexture = PIXI.Texture.fromImage("/img/foots.png");
-var footsTextures = [0,1,2,3,4,5,6,7,8,9].map(function (i) {
-  return tile24(footsTexture, 0, i);
-});
-function Foot (position) {
-  PIXI.Sprite.call(this, footsTextures[~~(Math.random()*footsTextures.length)]);
-  this.position.x = position.x;
-  this.position.y = position.y;
-  this.rotation = Math.random() * 2 * Math.PI;
-  this.pivot.set(12, 12);
-}
-Foot.prototype = Object.create(PIXI.Sprite.prototype);
-Foot.prototype.constructor = Foot;
-
-
-var fireExplosionTexture = PIXI.Texture.fromImage("/img/fireexplosion.png");
-var fireExplosionTextures = [
-  tile64(fireExplosionTexture, 0, 0),
-  tile64(fireExplosionTexture, 1, 0),
-  tile64(fireExplosionTexture, 2, 0)
-];
-var snowExplosionTexture = PIXI.Texture.fromImage("/img/snowexplosion.png");
-var snowExplosionTextures = [
-  tile64(snowExplosionTexture, 0, 0),
-  tile64(snowExplosionTexture, 1, 0),
-  tile64(snowExplosionTexture, 2, 0)
-];
-var playerExplosionTexture = PIXI.Texture.fromImage("/img/playerexplosion.png");
-var playerExplosionTextures = [
-  tile64(playerExplosionTexture, 0, 0),
-  tile64(playerExplosionTexture, 1, 0),
-  tile64(playerExplosionTexture, 2, 0)
-];
-function ParticleExplosion (ref, textures, speed) {
-  PIXI.DisplayObjectContainer.call(this);
-  this.position.x = ref.position.x;
-  this.position.y = ref.position.y;
-  this.speed = speed || 100;
-  this.width = ref.width;
-  this.height = ref.width;
-  this.rotation = Math.random() * 2 * Math.PI;
-  this.pivot.set(32, 32);
-  this.sprites = textures.map(function (t) {
-    return new PIXI.Sprite(t);
-  });
-}
-ParticleExplosion.prototype = Object.create(PIXI.DisplayObjectContainer.prototype);
-ParticleExplosion.prototype.constructor = ParticleExplosion;
-ParticleExplosion.prototype.update = function (t) {
-  if (!this.current) {
-    this.start = t;
-  }
-  var i = ~~((t-this.start)/this.speed);
-  if (i < 3) {
-    var s = this.sprites[i];
-    if (s !== this.current) {
-      if (this.current) this.removeChild(this.current);
-      this.addChild(s);
-      this.current = s;
-    }
-  }
-  else {
-    this.parent.removeChild(this);
-  }
-};
-
-
-function World () {
-  PIXI.DisplayObjectContainer.call(this);
-
-}
-World.prototype = Object.create(PIXI.DisplayObjectContainer.prototype);
-World.prototype.constructor = World;
-World.prototype.update = updateChildren;
-World.prototype.playerDied = function (player) {
-  var obj = player.getScore();
-  obj.opacity = 1;
-  var self = this;
-  setTimeout(function () {
-    self.addChild(new DeadCarrot(obj, true, true));
-  }, 800);
-  this.addChild(new ParticleExplosion(player, playerExplosionTextures, 250));
-};
-World.prototype.snowballExplode = function (snowball) {
-  play(SOUNDS.snowballHit, snowball, 0.6);
-  this.addChild(new ParticleExplosion(snowball, snowExplosionTextures));
-};
-World.prototype.carHitPlayerExplode = function (car, player) {
-  var rect = spriteIntersect(car, player);
-  var x = rect.from.x + (rect.to.x - rect.from.x) / 2;
-  var y = rect.from.y + (rect.to.y - rect.from.y) / 2;
-  this.addChild(new ParticleExplosion(/* FIXME HACK */{ position: new PIXI.Point(x, y), width: 100 }, snowExplosionTextures));
-}
-World.prototype.fireballExplode = function (fireball) {
-  play(SOUNDS.burn, fireball, 0.3);
-  this.addChild(new ParticleExplosion(fireball, fireExplosionTextures));
-};
-World.prototype.focusOn = function (player) {
-  y = HEIGHT-Math.max(player.position.y, player.maxProgress+120);
-  //var y = HEIGHT-50-player.position.y;
-  //var y = HEIGHT - Math.max(player.position.y, player.maxProgress-100);
-  this.position.y = this.position.y + (y-this.position.y) * 0.06;
-};
-
-
-
-var playerTexture = PIXI.Texture.fromImage("/img/player.png");
-var playerWalkTextures = [
-  PIXI.Texture.fromImage("/img/player1.png"),
-  playerTexture,
-  PIXI.Texture.fromImage("/img/player2.png")
-];
-function Player () {
-  PIXI.Sprite.call(this, playerTexture);
-  this.life = 100;
-  this.pivot.set(80, 80);
-}
-Player.prototype = Object.create(PIXI.Sprite.prototype);
-Player.prototype.constructor = Player;
-Player.prototype.update = function (t, dt) {
-  if (this.dead) return;
-  var x = this.controls.x();
-  var y = this.controls.y();
-
-  this.position.x += 0.2 * x * dt;
-  this.position.y -= 0.2 * y * dt;
-
-  this.maxProgress = Math.min(this.maxProgress, this.position.y);
-
-  this.position.x = Math.max(0, Math.min(this.position.x, WIDTH));
-  this.position.y = Math.min(this.position.y, this.maxProgress+120);
-
-  var scale = 0.6 + this.life / 150;
-  this.width  = 40 * scale;
-  this.height = 40 * scale;
-
-  if (x || y) {
-    if (Math.random()<0.8) footprints.addChild(new Foot(this.position));
-    this.setTexture(playerWalkTextures[~~(t / 150) % playerWalkTextures.length]);
-  }
-  else {
-    this.setTexture(playerTexture);
-  }
-
-  if (y < 0) this.rotation = Math.PI;
-  else if (y > 0) this.rotation = 0;
-  else if (x > 0) this.rotation = Math.PI/2;
-  else if (x < 0) this.rotation = -Math.PI/2;
-};
-Player.prototype.hitBox = function () {
-  return {
-    x: this.x - this.pivot.x * this.scale.x + this.width * 0.25,
-    y: this.y - this.pivot.y * this.scale.y + this.height * 0.2,
-    width: this.width * 0.5,
-    height: this.height * 0.6
-  };
-};
-Player.prototype.onProjectile = function (p) {
-  var knock = 2 * p.width;
-  this.position.x += knock * p.vel[0];
-  this.position.y += knock * p.vel[1];
-};
-Player.prototype.onSnowball = function (ball) {
-  this.life += 10;
-  this.onProjectile(ball);
-};
-Player.prototype.onFireball = function (ball) {
-  this.life -= 10;
-  this.onProjectile(ball);
-};
-Player.prototype.onCarHit = function () {
-  // this.life -= 100; // FIXME new gameplay to consider later
-  this.life = 0;
-  play(SOUNDS.carHit, null, 1.0);
-};
-Player.prototype.collidesCar = function (car) {
-  return collideRectangle(this, car);
-};
-Player.prototype.collidesParticle = function (p) {
-  return collideRectangle(this, p);
-};
-Player.prototype.collides = spriteCollides;
-Player.prototype.getScore = function () {
- return {
-   player: getPlayerName(),
-   x: ~~player.position.x,
-   score: getPlayerScore(player)
- };
-};
-
-
-function OtherPlayer () {
-  Player.call(this);
-  this.alpha = 0.5;
-}
-OtherPlayer.prototype = Object.create(Player.prototype);
-OtherPlayer.prototype.constructor = OtherPlayer;
-
-
-var fireballTexture = PIXI.Texture.fromImage("/img/fireball.png");
-function Fireball () {
-  PIXI.Sprite.call(this, fireballTexture);
-  var scale = 0.3 + 0.2 * Math.random() + 0.5 * Math.random() * Math.random();
-  this.scale.set(scale, scale);
-  if (DEBUG) world.addChild(new DebugSprite(this));
-}
-Fireball.prototype = Object.create(PIXI.Sprite.prototype);
-Fireball.prototype.constructor = Fireball;
-Fireball.prototype.update = function () {
-  if (this.position.y > 0) this.parent.removeChild(this);
-};
-Fireball.prototype.hitBox = function () {
-  return {
-    x: this.x - this.pivot.x * this.scale.x + 0.2 * this.width,
-    y: this.y - this.pivot.y * this.scale.y + 0.2 * this.height,
-    width: this.width * 0.6,
-    height: this.height * 0.6
-  };
-};
-Fireball.prototype.explodeInWorld = function (world) {
-  world.fireballExplode(this);
-};
-Fireball.prototype.hitPlayer = function () {
-  player.onFireball(this);
-}
-Fireball.prototype.collides = spriteCollides;
-
-
-var snowballTexture = PIXI.Texture.fromImage("/img/snowball.png");
-function Snowball () {
-  PIXI.Sprite.call(this, snowballTexture);
-  var scale = 0.5 + 0.5 * Math.random();
-  this.scale.set(scale, scale);
-  if (DEBUG) world.addChild(new DebugSprite(this));
-}
-Snowball.prototype = Object.create(PIXI.Sprite.prototype);
-Snowball.prototype.constructor = Snowball;
-Snowball.prototype.update = function () {
-};
-Snowball.prototype.hitBox = function () {
-  return {
-    x: this.x - this.pivot.x * this.scale.x,
-    y: this.y - this.pivot.y * this.scale.y,
-    width: this.width,
-    height: this.height
-  };
-};
-Snowball.prototype.explodeInWorld = function (world) {
-  world.snowballExplode(this);
-};
-Snowball.prototype.hitPlayer = function () {
-  player.onSnowball(this);
-};
-Snowball.prototype.collides = spriteCollides;
-
-
-var debugTexture = PIXI.Texture.fromImage("/img/debug.png");
-function DebugSprite (observe) {
-  PIXI.Sprite.call(this, debugTexture);
-  this.o = observe;
-}
-DebugSprite.prototype = Object.create(PIXI.Sprite.prototype);
-DebugSprite.prototype.constructor = DebugSprite;
-DebugSprite.prototype.update = function () {
-  var hitBox = this.o.hitBox();
-  this.position.set(hitBox.x, hitBox.y);
-  this.width = hitBox.width;
-  this.height = hitBox.height;
-}
-
-
-var deadCarrotTexture = PIXI.Texture.fromImage("/img/dead_carrot.png");
-function DeadCarrot (score, animated, me) {
-  PIXI.DisplayObjectContainer.call(this);
-  var carrot = new PIXI.Sprite(deadCarrotTexture);
-  carrot.pivot.set(12, 24);
-  var text = new PIXI.Text(score.player, { align: 'center', font: 'normal 10px Monda', fill: me ?  '#F40' : '#C40'});
-  text.position.set(-text.width/2, 0);
-  this.position.set(score.x, scoreToY(score.score));
-  this.addChild(carrot);
-  this.addChild(text);
-  this.alpha = score.opacity;
-  this.animated = animated;
-  this.start = Date.now();
-};
-DeadCarrot.prototype = Object.create(PIXI.DisplayObjectContainer.prototype);
-DeadCarrot.prototype.constructor = DeadCarrot;
-DeadCarrot.prototype.update = function () {
-  if (this.animated) {
-    var scale = 1 + smoothstep(4000, 0, Date.now()-this.start);
-    this.scale.set(scale, scale);
-  }
-};
-
-var carTextures = [
-  PIXI.Texture.fromImage("/img/car1.png"),
-  PIXI.Texture.fromImage("/img/car2.png"),
-  PIXI.Texture.fromImage("/img/car3.png"),
-  PIXI.Texture.fromImage("/img/car4.png"),
-  PIXI.Texture.fromImage("/img/car5.png"),
-  PIXI.Texture.fromImage("/img/car6.png"),
-  PIXI.Texture.fromImage("/img/car7.png"),
-  PIXI.Texture.fromImage("/img/car8.png"),
-  PIXI.Texture.fromImage("/img/car9.png"),
-  PIXI.Texture.fromImage("/img/car10.png")
-];
-
-function Car (seed) {
-  var random = seedrandom(seed);
-  PIXI.Sprite.call(this, carTextures[~~(random() * carTextures.length)]);
-  this.width = 0;
-  this.height = 0;
-  if (DEBUG) world.addChild(new DebugSprite(this));
-}
-Car.prototype = Object.create(PIXI.Sprite.prototype);
-Car.prototype.constructor = Car;
-Car.prototype.update = function () {
-  this.width  = this.vel[0] < 0 ? -84 : 84; // FIXME hack...
-  this.height = 48;
-};
-Car.prototype.hitBox = function () {
-  var w = Math.abs(this.width);
-  return {
-    x: Math.min(this.x, this.x+this.width) - this.pivot.x + w * 0.2,
-    y: Math.min(this.y, this.y+this.height) - this.pivot.y,
-    width: w * 0.6,
-    height: Math.abs(this.height)
-  };
-};
-Car.prototype.collides = spriteCollides;
-
-
-function KeyboardControls () {
-  this._keys = {};
-  document.body.addEventListener("keydown", this._onDown.bind(this), false);
-  document.body.addEventListener("keyup", this._onUp.bind(this), false);
-  /*
-  window.addEventListener("focus", this._onFocus.bind(this), false);
-  window.addEventListener("blur", this._onBlur.bind(this), false);
-  */
-}
-KeyboardControls.prototype = {
-  _onFocus: function (e) {
-    this._paused = 0;
-    renderer.view.style.opacity = 1;
-  },
-  _onBlur: function (e) {
-    this._paused = 1;
-    renderer.view.style.opacity = 0.5;
-  },
-  _onDown: function (e) {
-    if ([37,38,39,40].indexOf(e.which) >= 0)
-      e.preventDefault();
-    this._keys[e.which] = 1;
-  },
-  _onUp: function (e) {
-    this._keys[e.which] = 0;
-  },
-  paused: function () {
-    return this._paused;
-  },
-  x: function () {
-    var left = !!(this._keys[37] || this._keys[81] || this._keys[65]);
-    var right = !!(this._keys[39] || this._keys[68]);
-    return -left +right;
-  },
-  y: function () {
-    var up = !!(this._keys[38] || this._keys[90] || this._keys[87]);
-    var down = !!(this._keys[40] || this._keys[83]);
-    return +up -down;
-  }
-};
-
-
-function SpawnerCollection () {
-  PIXI.DisplayObjectContainer.call(this);
-}
-SpawnerCollection.prototype = Object.create(PIXI.DisplayObjectContainer.prototype);
-SpawnerCollection.prototype.constructor = SpawnerCollection;
-SpawnerCollection.prototype.update = updateChildren;
-SpawnerCollection.prototype.collides = findChildrenCollide;
-
-
-function Game () {
-};
-Game.prototype = {
-  destroy: function () {
-
-  },
-  update: function (t) {
-
-  }
-};
 
 var ui = new PIXI.DisplayObjectContainer();
 var world = new World();
 var map = new Map();
 var keyboard = new KeyboardControls();
-var player = new Player();
 var cars = new SpawnerCollection();
 var particles = new SpawnerCollection();
 var deadCarrots = new PIXI.DisplayObjectContainer();
 var footprints = new PIXI.DisplayObjectContainer();
+var player = new Player(footprints);
 var players = new PIXI.DisplayObjectContainer();
 deadCarrots.update = updateChildren;
 
@@ -728,13 +100,11 @@ world.addChild(player);
 world.addChild(cars);
 world.addChild(particles);
 
-player.position.x = WIDTH / 2;
-player.position.y = HEIGHT - 30;
-player.maxProgress = HEIGHT - 120;
+player.position.x = conf.WIDTH / 2;
+player.position.y = conf.HEIGHT - 30;
+player.maxProgress = conf.HEIGHT - 120;
 
-if (DEBUG) world.addChild(new DebugSprite(player));
-
-var score = new PIXI.Text("", { font: 'bold 20px Monda', fill: '#88B' });
+var score = new PIXI.Text("", { font: 'bold 20px '+font.name, fill: '#88B' });
 var life = new PIXI.Text("");
 ui.addChild(score);
 ui.addChild(life);
@@ -742,7 +112,7 @@ stage.addChild(ui);
 
 score.position.x = 10;
 score.position.y = 10;
-life.position.x = WIDTH - 60;
+life.position.x = conf.WIDTH - 60;
 life.position.y = 10;
 
 function addCarPath (y, leftToRight, vel, maxFollowing, maxHole, spacing, random) {
@@ -752,15 +122,16 @@ function addCarPath (y, leftToRight, vel, maxFollowing, maxHole, spacing, random
     var n = (i%2 ? -1 : 1) * ~~(1 + ( (i%2 ? maxHole : maxFollowing) - 1) * random());
     seq.push(n);
   }
-  var pos = [ leftToRight ? -100 : WIDTH+100, y ];
+  var pos = [ leftToRight ? -100 : conf.WIDTH+100, y ];
   var spawner = new Spawner({
-    spawn: function (i) { return new Car(i); },
+    seed: y,
+    spawn: function (i, random) { return new Car(random); },
     pos: pos,
     ang: leftToRight ? 0 : Math.PI,
     vel: vel,
     speed: (80 * (1+(spacing||0))) / vel,
     seq: seq,
-    livingBound: { x: -100, y: y, height: 100, width: WIDTH+200 }
+    livingBound: { x: -100, y: y, height: 100, width: conf.WIDTH+200 }
   });
   spawner.init(now());
   cars.addChild(spawner);
@@ -769,7 +140,11 @@ function addCarPath (y, leftToRight, vel, maxFollowing, maxHole, spacing, random
 
 function addDirectionalParticleSpawner (Particle, pos, ang, vel, speed, seq) {
   var spawner = new Spawner({
-    spawn: function () { return new Particle(); },
+    seed: ""+pos,
+    spawn: function (i, random) {
+      var scale = 0.3 + 0.3 * random() + 0.3 * random() * random();
+      return new Particle(scale);
+    },
     pos: pos,
     ang: ang,
     vel: vel,
@@ -784,14 +159,18 @@ function addDirectionalParticleSpawner (Particle, pos, ang, vel, speed, seq) {
 
 function addRotatingParticleSpawner (Particle, pos, rotate, vel, speed, seq) {
   var spawner = new Spawner({
-    spawn: function () { return new Particle(); },
+    seed: ""+pos,
+    spawn: function (i, random) {
+      var scale = 0.3 + 0.3 * random() + 0.3 * random() * random();
+      return new Particle(scale);
+    },
     pos: pos,
     vel: vel,
     rotate: rotate,
     speed: speed,
     seq: seq,
     life: 6000,
-    angle: Math.random() * 2 * Math.PI
+    angle: 0
   });
   spawner.init(now());
   particles.addChild(spawner);
@@ -852,7 +231,7 @@ function allocChunk (i, random) {
   if (i > 1 && random() < 0.9) {
     nb = 3 * random() * random() + 2 * random() * (10-i%10)/10 + 1;
     for (j=0; j<nb; ++j) {
-      pos = [random()<0.5 ? 0 : WIDTH, y-200*random()-280];
+      pos = [random()<0.5 ? 0 : conf.WIDTH, y-200*random()-280];
       n = 1 + ~~(random() * (3 * random() + i / 8));
       offset = random() * (random() * 0.3 + 0.1 * (i % 24) / 24);
       speed = (1-(i%50)/50) * 1000 * (1 - random()*random());
@@ -863,7 +242,7 @@ function allocChunk (i, random) {
   if (i > 4 && random() < 0.9) {
     nb = 2 * random() * random() + random() * (i/8) + i / 30 + 0.5;
     for (j=0; j<nb; ++j) {
-      pos = [random()<0.5 ? 0 : WIDTH, y-200*random()-280];
+      pos = [random()<0.5 ? 0 : conf.WIDTH, y-200*random()-280];
       n = 1 + ~~(random() * (random() + i / 10));
       offset = random() * (random() * 0.3 + 0.1 * ((i+10) % 24) / 24);
       speed = (1-(i%50)/50) * 1000 * (1 - random()*random());
@@ -889,7 +268,7 @@ function createDeadCarrot (score) {
   }
 }
 
-scoresP.then(function (scores) {
+network.scoresP.then(function (scores) {
   scores.forEach(createDeadCarrot);
 }).done();
 
@@ -931,7 +310,7 @@ function loop () {
     });
   });
   if (carNearby) {
-    play(SOUNDS.car);
+    audio.play("car");
   }
 
   var angry = 0;
@@ -964,13 +343,13 @@ function loop () {
     player.life -= dt / 500;
   }
 
-  var s = getPlayerScore(player);
+  var s = Player.getPlayerScore(player);
   if (s > 0) {
     score.setText("" + s);
     if (player.life > 0) {
       life.setText("" + ~~(player.life) + "%");
       life.setStyle({
-        font: 'normal 20px Monda',
+        font: 'normal 20px '+font.name,
         fill: player.life < 20 ? '#F00' : (player.life < 50 ? '#F90' : (player.life < 100 ? '#999' : '#6C6'))
       });
     }
@@ -983,7 +362,7 @@ function loop () {
     player.dead = 1;
     world.playerDied(player);
     world.removeChild(player);
-    submitScore(player)
+    network.submitScore(player)
       .delay(6000)
       .fin(function () {
         window.location.reload();
@@ -991,7 +370,7 @@ function loop () {
       .done();
   }
 
-  var headChunk = - ~~(player.maxProgress / HEIGHT);
+  var headChunk = - ~~(player.maxProgress / conf.HEIGHT);
   var aheadChunk = headChunk + 1;
   if (aheadChunk > currentAlloc) {
     allocChunk(++currentAlloc, chunkAllocRandom);
@@ -999,7 +378,7 @@ function loop () {
 
   [cars,particles].forEach(function (spawnerColl) {
     spawnerColl.children.forEach(function (spawner) {
-      if (player.maxProgress < spawner.pos[1]-HEIGHT-100) {
+      if (player.maxProgress < spawner.pos[1]-conf.HEIGHT-100) {
         spawner.parent.removeChild(spawner);
       }
     });
@@ -1010,6 +389,7 @@ function loop () {
   world.update(t, dt);
 
   world.focusOn(player);
+  audio.micOn(player);
 
   socket.emit("move", player.position, player.width);
 }
