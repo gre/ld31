@@ -73,7 +73,7 @@ var renders = _.map(days, function (day, dayIndex) {
 
   var date = new PIXI.Text(day.str, {
     font: "bold 40px "+font.name,
-    fill: "#B80"
+    fill: "#EB0"
   });
   date.position.x = (width-date.width)/2;
 
@@ -86,7 +86,7 @@ var renders = _.map(days, function (day, dayIndex) {
   var winner = new PIXI.Text(best.player, {
     font: "bold 30px "+font.name,
     fill: "#FA0",
-    dropShadowColor: "#EB0",
+    dropShadowColor: "#C90",
     dropShadow: true,
     dropShadowAngle: 0,
     dropShadowDistance: 2
