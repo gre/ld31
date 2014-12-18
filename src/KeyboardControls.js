@@ -10,11 +10,9 @@ function KeyboardControls () {
 KeyboardControls.prototype = {
   _onFocus: function (e) {
     this._paused = 0;
-    renderer.view.style.opacity = 1;
   },
   _onBlur: function (e) {
     this._paused = 1;
-    renderer.view.style.opacity = 0.5;
   },
   _onDown: function (e) {
     if ([37,38,39,40].indexOf(e.which) >= 0)
@@ -28,11 +26,13 @@ KeyboardControls.prototype = {
     return this._paused;
   },
   x: function () {
+    if (this._paused) return 0;
     var left = !!(this._keys[37] || this._keys[81] || this._keys[65]);
     var right = !!(this._keys[39] || this._keys[68]);
     return -left +right;
   },
   y: function () {
+    if (this._paused) return 0;
     var up = !!(this._keys[38] || this._keys[90] || this._keys[87]);
     var down = !!(this._keys[40] || this._keys[83]);
     return +up -down;

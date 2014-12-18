@@ -1,5 +1,5 @@
-
 var Qajax = require("qajax");
+var _ = require("lodash");
 
 var scoresEndPoint = "/scores";
 
@@ -20,5 +20,5 @@ function submitScore (player) {
 module.exports = {
   refreshScore: refreshScore,
   submitScore: submitScore,
-  scoresP: refreshScore()
+  initialScores: _.memoize(refreshScore)
 };

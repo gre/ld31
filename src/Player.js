@@ -102,4 +102,8 @@ Player.getPlayerName = function () {
   return window.localStorage.player = name;
 };
 
+Player.scoreToY = function (score) {
+  return -score;
+};
+
 module.exports = Player;

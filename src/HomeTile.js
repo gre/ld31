@@ -9,7 +9,7 @@ var homeTexture = PIXI.Texture.fromImage("/img/homebg.png");
 function HomeTile () {
   PIXI.Sprite.call(this, homeTexture);
   var self = this;
-  network.scoresP.then(function (scores) {
+  network.initialScores().then(function (scores) {
     scores = [].concat(scores);
     scores.sort(function (a, b) {
       return b.score - a.score;
