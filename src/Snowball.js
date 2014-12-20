@@ -2,7 +2,7 @@ var PIXI = require("pixi.js");
 
 var spriteCollides = require("./utils/spriteCollides");
 
-var snowballTexture = PIXI.Texture.fromImage("/img/snowball.png");
+var snowballTexture = PIXI.Texture.fromImage("./img/snowball.png");
 
 function Snowball (scale) {
   PIXI.Sprite.call(this, snowballTexture);

@@ -11,19 +11,19 @@ var spriteIntersect = require("./utils/spriteIntersect");
 var tilePIXI = require("./utils/tilePIXI");
 var tile64 = tilePIXI.tile64;
 
-var fireExplosionTexture = PIXI.Texture.fromImage("/img/fireexplosion.png");
+var fireExplosionTexture = PIXI.Texture.fromImage("./img/fireexplosion.png");
 var fireExplosionTextures = [
   tile64(fireExplosionTexture, 0, 0),
   tile64(fireExplosionTexture, 1, 0),
   tile64(fireExplosionTexture, 2, 0)
 ];
-var snowExplosionTexture = PIXI.Texture.fromImage("/img/snowexplosion.png");
+var snowExplosionTexture = PIXI.Texture.fromImage("./img/snowexplosion.png");
 var snowExplosionTextures = [
   tile64(snowExplosionTexture, 0, 0),
   tile64(snowExplosionTexture, 1, 0),
   tile64(snowExplosionTexture, 2, 0)
 ];
-var playerExplosionTexture = PIXI.Texture.fromImage("/img/playerexplosion.png");
+var playerExplosionTexture = PIXI.Texture.fromImage("./img/playerexplosion.png");
 var playerExplosionTextures = [
   tile64(playerExplosionTexture, 0, 0),
   tile64(playerExplosionTexture, 1, 0),
@@ -64,7 +64,7 @@ World.prototype.focusOn = function (player) {
   y = conf.HEIGHT - Math.max(player.position.y, player.maxProgress+120);
   //var y = HEIGHT-50-player.position.y;
   //var y = HEIGHT - Math.max(player.position.y, player.maxProgress-100);
-  this.position.y = this.position.y + (y-this.position.y) * 0.06;
+  this.position.y = this.position.y + (y-this.position.y) * 0.07;
 };
 
 module.exports = World;

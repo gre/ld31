@@ -4,12 +4,12 @@ var HighScore = require("./HighScore");
 
 var network = require("./network");
 
-var homeTexture = PIXI.Texture.fromImage("/img/homebg.png");
+var homeTexture = PIXI.Texture.fromImage("./img/homebg.png");
 
 function HomeTile () {
   PIXI.Sprite.call(this, homeTexture);
   var self = this;
-  network.initialScores().then(function (scores) {
+  network.scores().then(function (scores) {
     scores = [].concat(scores);
     scores.sort(function (a, b) {
       return b.score - a.score;

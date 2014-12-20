@@ -1,6 +1,6 @@
 var PIXI = require("pixi.js");
 
-var debugTexture = PIXI.Texture.fromImage("/img/debug.png");
+var debugTexture = PIXI.Texture.fromImage("./img/debug.png");
 
 function DebugSprite (observe) {
   PIXI.Sprite.call(this, debugTexture);

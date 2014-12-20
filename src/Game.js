@@ -5,7 +5,6 @@ var dist = require("./utils/dist");
 var mix = require("./utils/mix");
 
 var audio = require("./audio");
-var network = require("./network");
 var conf = require("./conf");
 var font = require("./font");
 
@@ -13,6 +12,7 @@ var World = require("./World");
 var Map = require("./Map");
 var DeadCarrot = require("./DeadCarrot");
 var Player = require("./Player");
+var Foot = require("./Foot");
 var KeyboardControls = require("./KeyboardControls");
 var SpawnerCollection = require("./SpawnerCollection");
 
@@ -20,8 +20,9 @@ var findChildrenCollide = require("./behavior/findChildrenCollide");
 var updateChildren = require("./behavior/updateChildren");
 var velUpdate = require("./behavior/velUpdate");
 
-function Game (seed, controls) {
+function Game (seed, controls, playername) {
   PIXI.Stage.call(this);
+  PIXI.EventTarget.mixin(this);
 
   var world = new World();
   var cars = new SpawnerCollection();
@@ -29,7 +30,7 @@ function Game (seed, controls) {
   var map = new Map(seed, cars, particles);
   var deadCarrots = new PIXI.DisplayObjectContainer();
   var footprints = new PIXI.DisplayObjectContainer();
-  var player = new Player(footprints);
+  var player = new Player(playername);
   player.controls = controls;
   player.position.x = conf.WIDTH / 2;
   player.position.y = conf.HEIGHT - 30;
@@ -39,13 +40,15 @@ function Game (seed, controls) {
   var score = new PIXI.Text("", { font: 'bold 20px '+font.name, fill: '#88B' });
   score.position.x = 10;
   score.position.y = 10;
-  var life = new PIXI.Text("");
+  var life = new PIXI.Text("", {
+    font: 'normal 20px '+font.name
+  });
   life.position.x = conf.WIDTH - 60;
   life.position.y = 10;
 
   world.addChild(map);
-  world.addChild(footprints);
   world.addChild(deadCarrots);
+  world.addChild(footprints);
   world.addChild(players);
   world.addChild(player);
   world.addChild(cars);
@@ -78,12 +81,19 @@ function Game (seed, controls) {
 Game.prototype = Object.create(PIXI.Stage.prototype);
 Game.prototype.constructor = Game;
 
+Game.prototype.destroy = function () {
+  this.audio1.stop();
+};
+
 Game.prototype.update = function (t, dt) {
   var world = this.world;
   var player = this.player;
   var cars = this.cars;
   var particles = this.particles;
   var controls = this.controls;
+
+
+  var moving = controls.x() || controls.y();
 
   // general vars for this loop time
   var danger = 0;
@@ -132,11 +142,7 @@ Game.prototype.update = function (t, dt) {
     this.audio1.setVolume(0);
   }
   else {
-    this.audio1.setVolume( controls.x() || controls.y() ? 0.2 + Math.min(0.8, angry + danger / 4) : 0 );
-  }
-
-  if (player.maxProgress < 0) {
-    player.life -= dt / 500;
+    this.audio1.setVolume( moving ? 0.2 + Math.min(0.8, angry + danger / 4) : 0 );
   }
 
   var s = Player.getPlayerScore(player);
@@ -144,10 +150,7 @@ Game.prototype.update = function (t, dt) {
     this.score.setText("" + s);
     if (player.life > 0) {
       this.life.setText("" + ~~(player.life) + "%");
-      this.life.setStyle({
-        font: 'normal 20px '+font.name,
-        fill: player.life < 20 ? '#F00' : (player.life < 50 ? '#F90' : (player.life < 100 ? '#999' : '#6C6'))
-      });
+      this.life.style.fill = player.life < 20 ? '#F00' : (player.life < 50 ? '#F90' : (player.life < 100 ? '#999' : '#6C6'));
     }
     else {
       this.life.setText("");
@@ -158,12 +161,7 @@ Game.prototype.update = function (t, dt) {
     player.dead = 1;
     world.playerDied(player);
     world.removeChild(player);
-    network.submitScore(player)
-      .delay(6000)
-      .fin(function () {
-        window.location.reload();
-      })
-      .done();
+    this.emit("GameOver");
   }
 
   var headChunk = - ~~(player.maxProgress / conf.HEIGHT);
@@ -180,18 +178,20 @@ Game.prototype.update = function (t, dt) {
     });
   });
 
+  if (moving && (!this._lastFoot||t-this._lastFoot>30) && Math.random() < 0.7) {
+    this._lastFoot = t;
+    this.footprints.addChild(new Foot(player.position, player.width / 2));
+  }
+
   world.update(t, dt);
 
   world.focusOn(player);
   audio.micOn(player);
 };
 
-Game.prototype.destroy = function () {
-};
-
 Game.prototype.createDeadCarrot = function (score) {
   if (score.opacity > 0) {
-    var deadCarrot = new DeadCarrot(score);
+    var deadCarrot = new DeadCarrot(score, false, score.player === this.player.name);
     this.deadCarrots.addChild(deadCarrot);
   }
 }

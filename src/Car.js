@@ -3,16 +3,16 @@ var PIXI = require("pixi.js");
 var spriteCollides = require("./utils/spriteCollides");
 
 var carTextures = [
-  PIXI.Texture.fromImage("/img/car1.png"),
-  PIXI.Texture.fromImage("/img/car2.png"),
-  PIXI.Texture.fromImage("/img/car3.png"),
-  PIXI.Texture.fromImage("/img/car4.png"),
-  PIXI.Texture.fromImage("/img/car5.png"),
-  PIXI.Texture.fromImage("/img/car6.png"),
-  PIXI.Texture.fromImage("/img/car7.png"),
-  PIXI.Texture.fromImage("/img/car8.png"),
-  PIXI.Texture.fromImage("/img/car9.png"),
-  PIXI.Texture.fromImage("/img/car10.png")
+  PIXI.Texture.fromImage("./img/car1.png"),
+  PIXI.Texture.fromImage("./img/car2.png"),
+  PIXI.Texture.fromImage("./img/car3.png"),
+  PIXI.Texture.fromImage("./img/car4.png"),
+  PIXI.Texture.fromImage("./img/car5.png"),
+  PIXI.Texture.fromImage("./img/car6.png"),
+  PIXI.Texture.fromImage("./img/car7.png"),
+  PIXI.Texture.fromImage("./img/car8.png"),
+  PIXI.Texture.fromImage("./img/car9.png"),
+  PIXI.Texture.fromImage("./img/car10.png")
 ];
 
 function Car (random) {

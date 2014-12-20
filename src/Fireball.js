@@ -1,7 +1,7 @@
 var PIXI = require("pixi.js");
 var spriteCollides = require("./utils/spriteCollides");
 
-var fireballTexture = PIXI.Texture.fromImage("/img/fireball.png");
+var fireballTexture = PIXI.Texture.fromImage("./img/fireball.png");
 
 function Fireball (scale) {
   PIXI.Sprite.call(this, fireballTexture);

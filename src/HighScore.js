@@ -3,9 +3,9 @@ var PIXI = require("pixi.js");
 var font = require("./font");
 
 var highscoreIcons = [
-  PIXI.Texture.fromImage("/img/scoreIcon1.png"),
-  PIXI.Texture.fromImage("/img/scoreIcon2.png"),
-  PIXI.Texture.fromImage("/img/scoreIcon3.png")
+  PIXI.Texture.fromImage("./img/scoreIcon1.png"),
+  PIXI.Texture.fromImage("./img/scoreIcon2.png"),
+  PIXI.Texture.fromImage("./img/scoreIcon3.png")
 ];
 function HighScore (score, i) {
   PIXI.DisplayObjectContainer.call(this);

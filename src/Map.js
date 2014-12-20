@@ -41,9 +41,7 @@ Map.prototype.update = function (t, dt) {
 
 
 Map.prototype.addCarPath = function (time, y, leftToRight, vel, maxFollowing, maxHole, spacing, random) {
-  random = Math.random.bind(Math); // TODO remove
-
-  var length = 10;
+  var length = 6;
   var seq = [];
   for (var i=0; i<length; ++i) {
     var n = (i%2 ? -1 : 1) * ~~(1 + ( (i%2 ? maxHole : maxFollowing) - 1) * random());

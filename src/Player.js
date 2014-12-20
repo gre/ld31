@@ -1,20 +1,25 @@
 var PIXI = require("pixi.js");
+var smoothstep = require("smoothstep");
+var mix = require("./utils/mix");
 
 var spriteCollides = require("./utils/spriteCollides");
 var audio = require("./audio");
-var Foot = require("./Foot");
 var conf = require("./conf");
 
-var playerTexture = PIXI.Texture.fromImage("/img/player.png");
+var playerTexture = PIXI.Texture.fromImage("./img/player.png");
 var playerWalkTextures = [
-  PIXI.Texture.fromImage("/img/player1.png"),
+  PIXI.Texture.fromImage("./img/player1.png"),
   playerTexture,
-  PIXI.Texture.fromImage("/img/player2.png")
+  PIXI.Texture.fromImage("./img/player2.png")
 ];
-function Player (footprintsContainer) {
-  this.footprints = footprintsContainer;
+function Player (name) {
+  this.name = name;
   PIXI.Sprite.call(this, playerTexture);
   this.life = 100;
+  this.meltingSpeed = 0.003;
+  this.moveSpeed = 0.2;
+
+  this._m = 0;
   this.pivot.set(80, 80);
 }
 Player.prototype = Object.create(PIXI.Sprite.prototype);
@@ -23,11 +28,30 @@ Player.prototype.update = function (t, dt) {
   if (this.dead) return;
   var x = this.controls.x();
   var y = this.controls.y();
+  var startMovingT = this._m;
+  var speed = 0;
 
-  this.position.x += 0.2 * x * dt;
-  this.position.y -= 0.2 * y * dt;
+  if (x || y) {
+    if (!startMovingT) {
+      this._m = startMovingT = t;
+    }
+    speed = this.moveSpeed * mix(0.5, 1, smoothstep(0, 200, t-startMovingT));
+
+    this.setTexture(playerWalkTextures[~~(t / 150) % playerWalkTextures.length]);
+  }
+  else {
+    this._m = 0;
+    this.setTexture(playerTexture);
+  }
+
+  this.position.x += x * dt * speed;
+  this.position.y -= y * dt * speed;
 
   this.maxProgress = Math.min(this.maxProgress, this.position.y);
+
+  if (this.maxProgress < 0) {
+    this.life -= dt * this.meltingSpeed;
+  }
 
   this.position.x = Math.max(0, Math.min(this.position.x, conf.WIDTH));
   this.position.y = Math.min(this.position.y, this.maxProgress+120);
@@ -35,15 +59,6 @@ Player.prototype.update = function (t, dt) {
   var scale = 0.6 + this.life / 150;
   this.width  = 40 * scale;
   this.height = 40 * scale;
-
-  if (x || y) {
-    if (this.footprints && Math.random()<0.8)
-      this.footprints.addChild(new Foot(this.position));
-    this.setTexture(playerWalkTextures[~~(t / 150) % playerWalkTextures.length]);
-  }
-  else {
-    this.setTexture(playerTexture);
-  }
 
   if (y < 0) this.rotation = Math.PI;
   else if (y > 0) this.rotation = 0;
@@ -85,7 +100,7 @@ Player.prototype.collidesParticle = function (p) {
 Player.prototype.collides = spriteCollides;
 Player.prototype.getScore = function () {
  return {
-   player: Player.getPlayerName(),
+   player: this.name,
    x: ~~this.position.x,
    score: Player.getPlayerScore(this)
  };
@@ -93,13 +108,6 @@ Player.prototype.getScore = function () {
 
 Player.getPlayerScore = function (player) {
   return ~~Math.max(0, -player.maxProgress);
-};
-
-Player.getPlayerName = function () {
-  var name = window.localStorage.player || prompt("What's your name? (3 to 10 alphanum characters)");
-  if (!name) return null;
-  if (! /^[a-zA-Z0-9]{3,10}$/.exec(name)) return Player.getPlayerName();
-  return window.localStorage.player = name;
 };
 
 Player.scoreToY = function (score) {

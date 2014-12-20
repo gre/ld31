@@ -1,4 +1,7 @@
 var jsfxr = require("jsfxr");
+var howler = require("howler");
+
+console.log("TODO", howler);
 
 var micSprite = null;
 var smoothstep = require("smoothstep");
@@ -21,11 +24,13 @@ var SOUNDS = {
 function loopAudio (src) {
   var volume = 0;
   var current;
+  var stopped = false;
 
   function step () {
     var audio = new Audio();
     audio.addEventListener('ended', function () {
-      step();
+      if (!stopped)
+        step();
     });
     audio.src = src;
     audio.volume = volume;
@@ -38,6 +43,11 @@ function loopAudio (src) {
   return {
     setVolume: function (v) {
       current.volume = volume = v;
+    },
+    stop: function () {
+      stopped = true;
+      current.pause();
+      current.src = null;
     }
   };
 }

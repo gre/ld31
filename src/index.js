@@ -62,13 +62,39 @@ console.log("seed = "+seed);
 
 
 var controls = new KeyboardControls();
-var game = new Game(seed, controls);
-stage.addChild(game);
+var game;
+
+function getPlayerName () {
+  var name = window.localStorage.player || prompt("What's your name? (3 to 10 alphanum characters)");
+  if (!name) return null;
+  if (! /^[a-zA-Z0-9]{3,10}$/.exec(name)) return getPlayerName();
+  return window.localStorage.player = name;
+}
+
+function newGame () {
+  game = new Game(seed, controls, getPlayerName());
+  game.on("GameOver", function () {
+    network.submitScore(game.player)
+      .then(function () {
+        network.refreshScores();
+      })
+      .delay(6000)
+      .fin(function () {
+        stage.removeChild(game);
+        game.destroy();
+        newGame();
+      })
+      .done();
+  });
+  network.scores().then(function (scores) {
+    scores.forEach(game.createDeadCarrot, game);
+  }).done();
+  stage.addChild(game);
+}
+
+newGame();
 
 // move in Game?
-network.initialScores().then(function (scores) {
-  scores.forEach(game.createDeadCarrot, game);
-}).done();
 
 var lastAbsoluteTime;
 

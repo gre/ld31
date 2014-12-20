@@ -12,6 +12,15 @@ var _ = require("lodash");
 
 var DAY_MS = 24 * 3600 * 1000;
 
+console.log(
+_(data)
+  .map(function (score) {
+    return score.player;
+  })
+  .uniq()
+  .value().length
+    );
+
 var days = _(data)
   .map(function (score) {
     return Math.floor(score.date / DAY_MS);
@@ -77,7 +86,7 @@ var renders = _.map(days, function (day, dayIndex) {
   });
   date.position.x = (width-date.width)/2;
 
-  var gold = PIXI.Sprite.fromImage("/img/scoreIcon1.png");
+  var gold = PIXI.Sprite.fromImage("./img/scoreIcon1.png");
   gold.position.y = 50;
   gold.position.x = 120;
   gold.scale.x = 3;
@@ -99,6 +108,12 @@ var renders = _.map(days, function (day, dayIndex) {
   stage.addChild(date);
   stage.addChild(gold);
   stage.addChild(winner);
+
+  var line = new PIXI.Graphics();
+  line.beginFill(0xCC9900);
+  line.drawRect(0, 0, 4, height);
+  line.endFill();
+  stage.addChild(line);
 
   scores.forEach(function (score) {
     var dead = new PIXI.Graphics();

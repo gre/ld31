@@ -3,7 +3,7 @@ var smoothstep = require("smoothstep");
 var font = require("./font");
 var Player = require("./Player");
 
-var deadCarrotTexture = PIXI.Texture.fromImage("/img/dead_carrot.png");
+var deadCarrotTexture = PIXI.Texture.fromImage("./img/dead_carrot.png");
 
 function DeadCarrot (score, animated, me, size) {
   PIXI.DisplayObjectContainer.call(this);

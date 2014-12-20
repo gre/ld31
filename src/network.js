@@ -3,10 +3,13 @@ var _ = require("lodash");
 
 var scoresEndPoint = "/scores";
 
-function refreshScore () {
-  return Qajax(scoresEndPoint)
+var currentPromise;
+
+function refreshScores () {
+  currentPromise = Qajax(scoresEndPoint)
     .then(Qajax.filterSuccess)
     .then(Qajax.toJSON);
+  return currentPromise;
 }
 
 function submitScore (player) {
@@ -18,7 +21,10 @@ function submitScore (player) {
 }
 
 module.exports = {
-  refreshScore: refreshScore,
+  refreshScores: refreshScores,
   submitScore: submitScore,
-  initialScores: _.memoize(refreshScore)
+  scores: function () {
+    if (!currentPromise) refreshScores();
+    return currentPromise;
+  }
 };

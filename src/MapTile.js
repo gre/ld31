@@ -1,7 +1,7 @@
 var PIXI = require("pixi.js");
 
 var mapTextures = [
-  PIXI.Texture.fromImage("/img/map1.png")
+  PIXI.Texture.fromImage("./img/map1.png")
 ];
 function MapTile (index) {
   PIXI.Sprite.call(this, mapTextures[index % mapTextures.length]);
