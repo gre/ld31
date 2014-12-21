@@ -6,13 +6,15 @@ var spriteCollides = require("./utils/spriteCollides");
 var audio = require("./audio");
 var conf = require("./conf");
 
+var Footprints = require("./Footprints");
+
 var playerTexture = PIXI.Texture.fromImage("./img/player.png");
 var playerWalkTextures = [
   PIXI.Texture.fromImage("./img/player1.png"),
   playerTexture,
   PIXI.Texture.fromImage("./img/player2.png")
 ];
-function Player (name) {
+function Player (name, footprints) {
   this.name = name;
   PIXI.Sprite.call(this, playerTexture);
   this.life = 100;
@@ -21,6 +23,9 @@ function Player (name) {
 
   this._m = 0;
   this.pivot.set(80, 80);
+
+  this.footprints = new Footprints();
+  footprints.addChild(this.footprints);
 }
 Player.prototype = Object.create(PIXI.Sprite.prototype);
 Player.prototype.constructor = Player;
@@ -38,6 +43,10 @@ Player.prototype.update = function (t, dt) {
     speed = this.moveSpeed * mix(0.5, 1, smoothstep(0, 200, t-startMovingT));
 
     this.setTexture(playerWalkTextures[~~(t / 150) % playerWalkTextures.length]);
+
+    if ((!this._lastFoot||t-this._lastFoot>30) && Math.random() < 0.7) {
+      this.footprints.walk(this.position, this.width / 2);
+    }
   }
   else {
     this._m = 0;

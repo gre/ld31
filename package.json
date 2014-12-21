@@ -46,7 +46,7 @@
     "raf": "^2.0.4",
     "seedrandom": "^2.3.10",
     "serve-static": "^1.7.1",
-    "sliding-window": "^0.1.0",
+    "sliding-window": "^0.1.1",
     "smoothstep": "^1.0.1",
     "socket.io": "^1.2.1",
     "socket.io-client": "^1.2.1"

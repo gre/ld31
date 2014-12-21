@@ -12,7 +12,6 @@ var World = require("./World");
 var Map = require("./Map");
 var DeadCarrot = require("./DeadCarrot");
 var Player = require("./Player");
-var Foot = require("./Foot");
 var KeyboardControls = require("./KeyboardControls");
 var SpawnerCollection = require("./SpawnerCollection");
 
@@ -30,7 +29,7 @@ function Game (seed, controls, playername) {
   var map = new Map(seed, cars, particles);
   var deadCarrots = new PIXI.DisplayObjectContainer();
   var footprints = new PIXI.DisplayObjectContainer();
-  var player = new Player(playername);
+  var player = new Player(playername, footprints);
   player.controls = controls;
   player.position.x = conf.WIDTH / 2;
   player.position.y = conf.HEIGHT - 30;
@@ -163,22 +162,14 @@ Game.prototype.update = function (t, dt) {
     this.emit("GameOver");
   }
 
-  [cars, particles].forEach(function (spawnerColl) {
-    spawnerColl.children.forEach(function (spawner) {
-      if (player.maxProgress < spawner.pos[1]-conf.HEIGHT-100) {
-        spawner.parent.removeChild(spawner);
-      }
-    });
-  });
-
-  if (moving && (!this._lastFoot||t-this._lastFoot>30) && Math.random() < 0.7) {
-    this._lastFoot = t;
-    this.footprints.addChild(new Foot(player.position, player.width / 2));
-  }
-
   world.focusOn(player);
   audio.micOn(player);
-  map.watchWindow(world.getWindow());
+
+  var win = world.getWindow();
+  this.footprints.children.forEach(function (footprints) {
+    footprints.watchWindow(win);
+  });
+  map.watchWindow(win);
 
   world.update(t, dt);
 };
