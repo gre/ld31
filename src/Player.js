@@ -107,7 +107,7 @@ Player.prototype.getScore = function () {
 };
 
 Player.getPlayerScore = function (player) {
-  return ~~Math.max(0, -player.maxProgress);
+  return ~~Math.max(0, -player.position.y);
 };
 
 Player.scoreToY = function (score) {

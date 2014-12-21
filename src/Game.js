@@ -75,7 +75,6 @@ function Game (seed, controls, playername) {
 
   // Game states
   this.audio1 = audio.loop("/audio/1.ogg");
-  this.currentAlloc = -1;
 };
 
 Game.prototype = Object.create(PIXI.Stage.prototype);
@@ -91,7 +90,7 @@ Game.prototype.update = function (t, dt) {
   var cars = this.cars;
   var particles = this.particles;
   var controls = this.controls;
-
+  var map = this.map;
 
   var moving = controls.x() || controls.y();
 
@@ -164,12 +163,6 @@ Game.prototype.update = function (t, dt) {
     this.emit("GameOver");
   }
 
-  var headChunk = - ~~(player.maxProgress / conf.HEIGHT);
-  var aheadChunk = headChunk + 1;
-  if (aheadChunk > this.currentAlloc) {
-    this.map.allocChunk(t, ++this.currentAlloc);
-  }
-
   [cars, particles].forEach(function (spawnerColl) {
     spawnerColl.children.forEach(function (spawner) {
       if (player.maxProgress < spawner.pos[1]-conf.HEIGHT-100) {
@@ -183,10 +176,11 @@ Game.prototype.update = function (t, dt) {
     this.footprints.addChild(new Foot(player.position, player.width / 2));
   }
 
-  world.update(t, dt);
-
   world.focusOn(player);
   audio.micOn(player);
+  map.watchWindow(world.getWindow());
+
+  world.update(t, dt);
 };
 
 Game.prototype.createDeadCarrot = function (score) {

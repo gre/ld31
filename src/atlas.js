@@ -4,7 +4,7 @@ var Q = require("q");
 function load () {
   var d = Q.defer();
   /*
-  var atlas = new PIXI.AtlasLoader("./sprites.json");
+  var atlas = new PIXI.AssetLoader("./sprites.json");
   atlas.on("loaded", d.resolve);
   atlas.on("error", d.reject);
   atlas.load();

@@ -60,6 +60,9 @@ World.prototype.fireballExplode = function (fireball) {
   audio.play("burn", fireball, 0.3);
   this.addChild(new ParticleExplosion(fireball, fireExplosionTextures));
 };
+World.prototype.getWindow = function () {
+  return [ this.position.y, this.position.y+conf.HEIGHT ];
+};
 World.prototype.focusOn = function (player) {
   y = conf.HEIGHT - Math.max(player.position.y, player.maxProgress+120);
   //var y = HEIGHT-50-player.position.y;
