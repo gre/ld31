@@ -54,7 +54,7 @@ function loopAudio (src) {
 
 function play (src, obj, volume) {
   if (!micSprite) return;
-  if (typeof src === "string") src = SOUNDS[src];
+  if (typeof src === "string" && src in SOUNDS) src = SOUNDS[src];
   if (typeof src === "object" && src.length) {
     return play(src[~~(Math.random()*src.length)], obj, volume);
   }

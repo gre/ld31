@@ -3,7 +3,6 @@ var PIXI = require("pixi.js");
 var smoothstep = require("smoothstep");
 
 var mix = require("./utils/mix");
-
 var conf = require("./conf");
 
 var HomeTile = require("./HomeTile");

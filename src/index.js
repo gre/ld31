@@ -1,4 +1,5 @@
 var PIXI = require("pixi.js");
+var Q = require("q");
 var requestAnimFrame = require("raf");
 var smoothstep = require("smoothstep");
 var seedrandom = require("seedrandom");
@@ -10,59 +11,72 @@ var ntp = window.ntp;
 var audio = require("./audio");
 var network = require("./network");
 var conf = require("./conf");
+var atlas = require("./atlas");
 
 var Game = require("./Game");
 var Player = require("./Player");
 var KeyboardControls = require("./KeyboardControls");
 
+// FIXME remove the spaghettis!
+
+
 var EMBED = location.hash === "#embed";
 
 var socket = io();
 
-socket.on('connect', function(){ console.log("CONNECT"); });
-socket.on('disconnect', function(){ console.log("DISCONNECT"); });
+var socketConnectedD = Q.defer();
+var socketConnected = socketConnectedD.promise;
+
+socket.on('connect', socketConnectedD.resolve);
 
 ntp.init(socket);
 
-function now () {
-  var off = ntp.offset();
-  return Date.now();
-}
+var syncTime = socketConnected.delay(1000);
+var latestOffset = 0;
+
+var imagesLoaded = atlas();
+
+var stage, renderer;
+
+createDom();
+
+Q.all([
+  imagesLoaded,
+  syncTime
+]).then(start).done();
+
 
 // var audio2 = loopAudio("/audio/2.ogg");
 
 
-var stage = new PIXI.Stage(0xFFFFFF);
-var renderer = PIXI.autoDetectRenderer(conf.WIDTH, conf.HEIGHT, { resolution: window.devicePixelRatio });
-renderer.view.style.width = conf.WIDTH+"px";
-renderer.view.style.height = conf.HEIGHT+"px";
+function createDom() {
 
-if (!EMBED)
-  renderer.view.style.border = "6px ridge #88B";
-document.body.style.padding = "0";
-document.body.style.margin = "0";
-var wrapper = document.createElement("div");
-wrapper.style.margin = "0 auto";
-wrapper.style.width = conf.WIDTH+"px";
-document.body.appendChild(wrapper);
-wrapper.appendChild(renderer.view);
+  stage = new PIXI.Stage(0xFFFFFF);
+  renderer = PIXI.autoDetectRenderer(conf.WIDTH, conf.HEIGHT, { resolution: window.devicePixelRatio });
+  renderer.view.style.width = conf.WIDTH+"px";
+  renderer.view.style.height = conf.HEIGHT+"px";
 
-if (!EMBED) {
-  var link = document.createElement("a");
-  link.href = "http://ludumdare.com/compo/ludum-dare-31/?action=preview&uid=18803";
-  link.innerHTML = "LudumDare 31 entry";
-  wrapper.appendChild(link);
+  if (!EMBED)
+    renderer.view.style.border = "6px ridge #88B";
+  document.body.style.padding = "0";
+  document.body.style.margin = "0";
+  var wrapper = document.createElement("div");
+  wrapper.style.margin = "0 auto";
+  wrapper.style.width = conf.WIDTH+"px";
+  document.body.appendChild(wrapper);
+  wrapper.appendChild(renderer.view);
+
+  if (!EMBED) {
+    var link = document.createElement("a");
+    link.href = "http://ludumdare.com/compo/ludum-dare-31/?action=preview&uid=18803";
+    link.innerHTML = "LudumDare 31 entry";
+    wrapper.appendChild(link);
+  }
+
+  return stage;
 }
 
-requestAnimFrame(loop);
 setTimeout(Player.getPlayerName, 100);
-
-var seed = "grewebisawesome" + ~~(Date.now() / (24 * 3600 * 1000));
-console.log("seed = "+seed);
-
-
-var controls = new KeyboardControls();
-var game;
 
 function getPlayerName () {
   var name = window.localStorage.player || prompt("What's your name? (3 to 10 alphanum characters)");
@@ -71,8 +85,20 @@ function getPlayerName () {
   return window.localStorage.player = name;
 }
 
-function newGame () {
-  game = new Game(seed, controls, getPlayerName());
+function now () {
+  var off = ntp.offset();
+  if (!isNaN(off))
+    latestOffset = off;
+  return Date.now() - latestOffset;
+}
+
+var currentGame;
+
+function newGame (controls) {
+  // This part is ugly...
+  var seed = "grewebisawesome" + ~~(now() / (24 * 3600 * 1000));
+  console.log("seed = "+seed);
+  var game = new Game(seed, controls, getPlayerName());
   game.on("GameOver", function () {
     network.submitScore(game.player)
       .then(function () {
@@ -82,7 +108,7 @@ function newGame () {
       .fin(function () {
         stage.removeChild(game);
         game.destroy();
-        newGame();
+        newGame(controls);
       })
       .done();
   });
@@ -90,26 +116,38 @@ function newGame () {
     scores.forEach(game.createDeadCarrot, game);
   }).done();
   stage.addChild(game);
+
+  currentGame = game;
 }
 
-newGame();
 
-// move in Game?
+function start () {
 
-var lastAbsoluteTime;
+  var controls = new KeyboardControls();
+  newGame(controls);
 
-function loop () {
+  // move in Game?
+
+  var lastLoopT;
+  var lastAbsoluteTime = 0;
+
+  function loop (loopT) {
+    requestAnimFrame(loop);
+
+    var t = Math.max(now(), lastAbsoluteTime); // ensure no backwards in synchronized time with current game.
+    lastAbsoluteTime = t;
+
+    if (!lastLoopT) lastLoopT = loopT;
+    var dt = Math.min(100, loopT - lastLoopT); // The delta time is computed using the more precised loopT
+    lastLoopT = loopT;
+
+    currentGame.update(t, dt);
+
+    renderer.render(stage);
+
+  }
+
   requestAnimFrame(loop);
-
-  var t = now();
-  if (!lastAbsoluteTime) lastAbsoluteTime = t;
-  var dt = Math.min(100, t - lastAbsoluteTime);
-  lastAbsoluteTime = t;
-
-  game.update(t, dt);
-
-  renderer.render(stage);
-
 }
 
 /*
