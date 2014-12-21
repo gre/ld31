@@ -25,7 +25,7 @@ function Map (seed, cars, spawners, genName) {
   this.random = seedrandom(seed);
   this.cars = cars;
   this.spawners = spawners;
-  this.generator = generators[genName||"v1"];
+  this.generator = generators[genName||"v2"];
   if (!this.generator) throw new Error("no such generator "+genName);
 
   var mapTileSize = 480;

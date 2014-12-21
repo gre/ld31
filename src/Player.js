@@ -24,8 +24,7 @@ function Player (name, footprints) {
   this._m = 0;
   this.pivot.set(80, 80);
 
-  this.footprints = new Footprints();
-  footprints.addChild(this.footprints);
+  footprints.addChild(this.footprints = new Footprints());
 }
 Player.prototype = Object.create(PIXI.Sprite.prototype);
 Player.prototype.constructor = Player;
