@@ -14,6 +14,7 @@ var conf = require("./conf");
 var atlas = require("./atlas");
 
 var Game = require("./Game");
+var NetworkGame = require("./NetworkGame");
 var Player = require("./Player");
 var KeyboardControls = require("./KeyboardControls");
 
@@ -93,6 +94,10 @@ function now () {
 }
 
 var currentGame;
+var currentNetwork;
+
+currentNetwork = new NetworkGame(socket);
+
 
 function newGame (controls) {
   // This part is ugly...
@@ -116,6 +121,8 @@ function newGame (controls) {
     scores.forEach(game.createDeadCarrot, game);
   }).done();
   stage.addChild(game);
+
+  currentNetwork.setGame(game);
 
   currentGame = game;
 }
@@ -142,6 +149,7 @@ function start () {
     lastLoopT = loopT;
 
     currentGame.update(t, dt);
+    currentNetwork.update(t, dt);
 
     renderer.render(stage);
 
@@ -150,30 +158,3 @@ function start () {
   requestAnimFrame(loop);
 }
 
-/*
-socket.emit("move", player.position, player.width);
-
-var playersByIds = {};
-
-socket.on("playermove", function (move) {
-  console.log("move", arguments);
-  var p = playersByIds[move.id];
-  if (!p) {
-    var p = new OtherPlayer();
-    p.position.x = -1000;
-    playersByIds[move.id] = p;
-    players.addChild(p);
-  }
-  p.height = p.width = move.width;
-  p.position.set(move.pos.x, move.pos.y);
-});
-
-socket.on("playerquit", function () {
-  var p = playersByIds[move.id];
-  if (p) {
-    players.removeChild(p);
-    delete playersByIds[move.id];
-  }
-});
-
-*/

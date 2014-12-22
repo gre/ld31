@@ -18,18 +18,36 @@ function Player (name, footprints) {
   this.name = name;
   PIXI.Sprite.call(this, playerTexture);
   this.life = 100;
+  this.maxLife = 500;
   this.meltingSpeed = 0.003;
   this.moveSpeed = 0.2;
+  this.dead = false;
+  this.controls = null; // Set me later
+  this.maxProgress = 9999;
+
+  this.position.x = conf.WIDTH / 2;
+  this.position.y = conf.HEIGHT - 30;
+  this.maxProgress = conf.HEIGHT - 120;
 
   this._m = 0;
   this.pivot.set(80, 80);
 
-  footprints.addChild(this.footprints = new Footprints());
+  if (footprints)
+    footprints.addChild(this.footprints = new Footprints());
 }
 Player.prototype = Object.create(PIXI.Sprite.prototype);
 Player.prototype.constructor = Player;
+Player.prototype.getState = function () {
+  return {
+    life: this.life,
+    pos: this.position
+  };
+};
 Player.prototype.update = function (t, dt) {
   if (this.dead) return;
+  if (this.controls.update) {
+    this.controls.update(t, dt);
+  }
   var x = this.controls.x();
   var y = this.controls.y();
   var startMovingT = this._m;
@@ -41,9 +59,11 @@ Player.prototype.update = function (t, dt) {
     }
     speed = this.moveSpeed * mix(0.5, 1, smoothstep(0, 200, t-startMovingT));
 
+    if (x && y) speed /= 1.414; // in diagonal, you move sqrt(2) slower
+
     this.setTexture(playerWalkTextures[~~(t / 150) % playerWalkTextures.length]);
 
-    if ((!this._lastFoot||t-this._lastFoot>30) && Math.random() < 0.7) {
+    if (this.footprints && (!this._lastFoot||t-this._lastFoot>30) && Math.random() < 0.7) {
       this.footprints.walk(this.position, this.width / 2);
     }
   }
@@ -56,11 +76,9 @@ Player.prototype.update = function (t, dt) {
   this.position.y -= y * dt * speed;
 
   this.maxProgress = Math.min(this.maxProgress, this.position.y);
-
   if (this.maxProgress < 0) {
     this.life -= dt * this.meltingSpeed;
   }
-
   this.position.x = Math.max(0, Math.min(this.position.x, conf.WIDTH));
   this.position.y = Math.min(this.position.y, this.maxProgress+120);
 
@@ -87,7 +105,7 @@ Player.prototype.onProjectile = function (p) {
   this.position.y += knock * p.vel[1];
 };
 Player.prototype.onSnowball = function (ball) {
-  this.life += 10;
+  this.life = Math.min(this.life+10, this.maxLife);
   this.onProjectile(ball);
 };
 Player.prototype.onFireball = function (ball) {

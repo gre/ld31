@@ -1,7 +1,8 @@
 var Player = require("./Player");
 
-function OtherPlayer () {
-  Player.call(this);
+function OtherPlayer (name) {
+  Player.call(this, arguments);
+
   this.alpha = 0.5;
 }
 OtherPlayer.prototype = Object.create(Player.prototype);

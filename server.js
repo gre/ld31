@@ -114,15 +114,16 @@ io.sockets.on('connection', function (socket) {
   ntp.sync(socket);
 
   console.log("connected", socket.id);
-  socket.broadcast.emit("playernew", socket.id);
+  socket.broadcast.emit("playerenter", socket.id, Date.now());
 
-  socket.on("move", function (pos, width) {
-    socket.broadcast.emit("playermove", { id: socket.id, pos: pos, width: width });
+
+  socket.on("player", function (ev, obj) {
+    socket.broadcast.emit("playerevent", ev, obj, socket.id, Date.now());
   });
 
   socket.on("disconnect", function () {
     console.log("disconnected", socket.id);
-    socket.broadcast.emit("playerquit", socket.id);
+    socket.broadcast.emit("playerleave", socket.id, Date.now());
   });
 });
 
